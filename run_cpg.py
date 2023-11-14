@@ -84,7 +84,7 @@ for j in range(TEST_STEPS):
   # get desired foot positions from CPG 
   xs,zs = cpg.update()
   # [TODO] get current motor angles and velocities for joint PD, see GetMotorAngles(), GetMotorVelocities() in quadruped.py
-  # q = env.robot.GetMotorAngles()
+  q = env.robot.GetMotorAngles()
   # dq = 
 
   # loop through desired foot positions and calculate torques
