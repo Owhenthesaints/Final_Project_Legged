@@ -163,21 +163,28 @@ class HopfNetwork():
         # loop through each leg's oscillator
         for i in range(4):
             # get r_i, theta_i from X
-            r, theta = 0, 0  # [TODO]
+            r, theta = X[i]  # to test
             # compute r_dot (Equation 6)
-            r_dot = 0  # [TODO]
+            r_dot = self._alpha * (self._mu - r ** 2) * r  # [TODO]
             # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
-            theta_dot = 0  # [TODO]
+            omega = 0
+            if (0 < theta % (2 * np.pi) < np.pi):
+                omega = self._omega_swing
+            else:
+                omega = self._omega_stance
+
+            theta_dot = omega
 
             # loop through other oscillators to add coupling (Equation 7)
             if self._couple:
-                theta_dot += 0  # [TODO]
+                for j in range(3):
+                    theta_dot += X[0][j]*self._coupling_strength*np.sin(theta[j]-theta[i]-self.PHI[i][j])  # [TODO]
 
             # set X_dot[:,i]
             X_dot[:, i] = [r_dot, theta_dot]
 
         # integrate
-        self.X = np.zeros((2, 4))  # [TODO]
+        self.X = X+(X_dot+X_dot_prev)/2*self._dt
         self.X_dot = X_dot
         # mod phase variables to keep between 0 and 2pi
         self.X[1, :] = self.X[1, :] % (2 * np.pi)
@@ -220,9 +227,13 @@ class HopfNetwork():
             # get r_i, theta_i from X
             r, theta = X[:, i]
             # amplitude (use mu from RL, i.e. self._mu_rl[i])
-            r_dot = 0  # [TODO]
+            r_dot = self._alpha*(self._mu-r**2)*r
             # phase (use omega from RL, i.e. self._omega_rl[i])
-            theta_dot = 0  # [TODO]
+            theta_dot = self._omega_rl
+            if self._couple:
+                for j in range(3):
+                    theta_dot+=X[0][j]*self._coupling_strength*np.sin(X[1][j]-theta-self.PHI[i][j])
+
 
             X_dot[:, i] = [r_dot, theta_dot]
 
