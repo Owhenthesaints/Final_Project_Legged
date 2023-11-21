@@ -140,9 +140,9 @@ class HopfNetwork():
 
         # map CPG variables to Cartesian foot xz positions (Equations 8, 9)
         x = -self._des_step_len * self.X[0] * np.cos(self.X[1])
-        z = np.where(0 < self.X[1] % (2 * np.pi) < np.pi,
+        z = np.where(self.X[1] % (2 * np.pi) < np.pi,
                      -self._robot_height + self._ground_clearance * np.sin(self.X[1]),
-                     -self._robot_height + self._ground_penetration * np.sin(X[0]))
+                     -self._robot_height + self._ground_penetration * np.sin(self.X[0]))
 
         # scale x by step length
         if not self.use_RL:
@@ -163,7 +163,7 @@ class HopfNetwork():
         # loop through each leg's oscillator
         for i in range(4):
             # get r_i, theta_i from X
-            r, theta = X[i]  # to test
+            r, theta = X[:, i]  # to test
             # compute r_dot (Equation 6)
             r_dot = self._alpha * (self._mu - r ** 2) * r  # [TODO]
             # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
@@ -178,7 +178,7 @@ class HopfNetwork():
             # loop through other oscillators to add coupling (Equation 7)
             if self._couple:
                 for j in range(3):
-                    theta_dot += X[0][j]*self._coupling_strength*np.sin(theta[j]-theta[i]-self.PHI[i][j])  # [TODO]
+                    theta_dot += X[0][j]*self._coupling_strength*np.sin(X[1][j]-theta-self.PHI[i][j])  # [TODO]
 
             # set X_dot[:,i]
             X_dot[:, i] = [r_dot, theta_dot]

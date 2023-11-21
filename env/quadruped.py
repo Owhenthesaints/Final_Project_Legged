@@ -199,7 +199,7 @@ class Quadruped(object):
         """Get quadruped motor angles at the current moment.
 
         Returns:
-          Motor angles.
+          Motor angles under the form from 0 to 2 FR from 3 to 6 FL etc..
         """
         motor_angles = [
             self._pybullet_client.getJointState(self.quadruped, motor_id)[0]
