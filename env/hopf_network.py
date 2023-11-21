@@ -102,16 +102,19 @@ class HopfNetwork():
         """ For coupling oscillators in phase space.
         [TODO] update all coupling matrices
         """
-        phi_trot = np.array([0.5, 0, 0, 0.5])
+        phi_trot = np.array([0.5, 0, 0, 0.5]) * 2 * np.pi
         phi_walk = np.array([0.5, 0, 0.25, 0.75])
         phi_bound = np.array([0.5, 0.5, 0, 0])
         phi_pace = np.array([0.5, 0, 0.5, 0])
         self.PHI_trot = np.array(
             [phi_trot[0] - phi_trot, phi_trot[1] - phi_trot, phi_trot[2] - phi_trot, phi_trot[3] - phi_trot])
+
         self.PHI_walk = np.array(
             [phi_walk[0] - phi_walk, phi_walk[1] - phi_walk, phi_walk[2] - phi_walk, phi_walk[3] - phi_walk])
+
         self.PHI_bound = np.array(
             [phi_bound[0] - phi_bound, phi_bound[1] - phi_bound, phi_bound[2] - phi_bound, phi_bound[3] - phi_bound])
+
         self.PHI_pace = np.array(
             [phi_pace[0] - phi_pace, phi_pace[1] - phi_pace, phi_pace[2] - phi_pace, phi_pace[3] - phi_pace])
 
@@ -136,8 +139,10 @@ class HopfNetwork():
             self._integrate_hopf_equations_rl()
 
         # map CPG variables to Cartesian foot xz positions (Equations 8, 9)
-        x = np.zeros(4)  # [TODO]
-        z = np.zeros(4)  # [TODO]
+        x = -self._des_step_len * self.X[0] * np.cos(self.X[1])
+        z = np.where(0 < self.X[1] % (2 * np.pi) < np.pi,
+                     -self._robot_height + self._ground_clearance * np.sin(self.X[1]),
+                     -self._robot_height + self._ground_penetration * np.sin(X[0]))
 
         # scale x by step length
         if not self.use_RL:
