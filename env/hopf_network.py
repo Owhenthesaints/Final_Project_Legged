@@ -103,10 +103,10 @@ class HopfNetwork():
     """ For coupling oscillators in phase space. 
     [TODO] update all coupling matrices
     """
-    self.PHI_trot = np.zeros((4,4))
-    self.PHI_walk = np.zeros((4,4))
-    self.PHI_bound = np.zeros((4,4))
-    self.PHI_pace = np.zeros((4,4))
+    self.PHI_trot = np.array([[0, 0.5*2*np.pi, 0.5*2*np.pi, 0], [-0.5*2*np.pi, 0, 0, -0.5*2*np.pi], [-0.5*2*np.pi, 0, 0, -0.5*2*np.pi], [0, 0.5*2*np.pi, 0.5*2*np.pi, 0]]) 
+    self.PHI_walk = np.array([[0, 0.5*2*np.pi, 0.25*2*np.pi, -0.25*2*np.pi], [-0.5*2*np.pi, 0, -0.25*2*np.pi, -0.75*2*np.pi], [-0.25*2*np.pi, 0.25*2*np.pi, 0, -0.5*2*np.pi], [0.25*2*np.pi, 0.75*2*np.pi, 0.5*2*np.pi, 0]])
+    self.PHI_bound = np.array([[0, 0, 0.5*2*np.pi, 0.5*2*np.pi], [0, 0, 0.5*2*np.pi, 0.5*2*np.pi], [-0.5*2*np.pi, -0.5*2*np.pi, 0, 0], [-0.5*2*np.pi, -0.5*2*np.pi, 0, 0]])
+    self.PHI_pace = np.array([[0, 0.5*2*np.pi, 0, 0.5*2*np.pi], [-0.5*2*np.pi, 0, -0.5*2*np.pi, 0], [0, 0.5*2*np.pi, 0, 0.5*2*np.pi], [-0.5*2*np.pi, 0, -0.5*2*np.pi, 0]])
 
     if gait == "TROT":
       self.PHI = self.PHI_trot
@@ -130,8 +130,8 @@ class HopfNetwork():
       self._integrate_hopf_equations_rl()
     
     # map CPG variables to Cartesian foot xz positions (Equations 8, 9) 
-    x = np.zeros(4) # [TODO]
-    z = np.zeros(4) # [TODO]
+    x = -self._des_step_len*self.X[0]*np.cos(self.X[1]) # [TODO]
+    z = -self._robot_height + self._ground_clearance*np.sin(self.X[1])*(np.sin(self.X[1]) > 0) + self._ground_penetration*np.sin(self.X[1])*(np.sin(self.X[1]) <= 0) # [TODO]
 
     # scale x by step length
     if not self.use_RL:
@@ -154,11 +154,16 @@ class HopfNetwork():
     # loop through each leg's oscillator
     for i in range(4):
       # get r_i, theta_i from X
-      r, theta = 0, 0 # [TODO]
+      r, theta = X[0,i], X[1,i] # [TODO]
       # compute r_dot (Equation 6)
-      r_dot = 0 # [TODO]
+      r_dot = self._alpha*(self._mu - r**2)*r # [TODO]
       # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
-      theta_dot = 0 # [TODO]
+      if (0 <= theta % 2*np.pi) and (theta % 2*np.pi > np.pi): 
+        omega = self._omega_swing
+      elif (np.pi <= theta % 2*np.pi) and (theta % 2*np.pi >= 2*np.pi): 
+        omega = self._omega_stance
+
+      theta_dot = omega # [TODO]
 
       # loop through other oscillators to add coupling (Equation 7)
       if self._couple:
