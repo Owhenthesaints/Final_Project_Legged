@@ -42,183 +42,186 @@ MU_UPP = 2
 
 
 class HopfNetwork():
-  """ CPG network based on hopf polar equations mapped to foot positions in Cartesian space.  
+    """ CPG network based on hopf polar equations mapped to foot positions in Cartesian space.
 
-  Foot Order is FR, FL, RR, RL
-  (Front Right, Front Left, Rear Right, Rear Left)
-  """
-  def __init__(self,
-                mu=1**2,                 # intrinsic amplitude, converges to sqrt(mu)
-                omega_swing=5*2*np.pi,   # frequency in swing phase (can edit)
-                omega_stance=2*2*np.pi,  # frequency in stance phase (can edit)
-                gait="TROT",             # Gait, can be TROT, WALK, PACE, BOUND, etc.
-                alpha=50,                # amplitude convergence factor
-                coupling_strength=1,     # coefficient to multiply coupling matrix
-                couple=True,             # whether oscillators should be coupled
-                time_step=0.001,         # time step 
-                ground_clearance=0.07,   # foot swing height 
-                ground_penetration=0.01, # foot stance penetration into ground 
-                robot_height=0.3,        # in nominal case (standing) 
-                des_step_len=0.05,       # desired step length 
-                max_step_len_rl=0.1,     # max step length, for RL scaling 
-                use_RL=False             # whether to learn parameters with RL 
-                ):
-    
-    ###############
-    # initialize CPG data structures: amplitude is row 0, and phase is row 1
-    self.X = np.zeros((2,4))
-    self.X_dot = np.zeros((2,4))
-
-    # save parameters 
-    self._mu = mu
-    self._omega_swing = omega_swing
-    self._omega_stance = omega_stance  
-    self._alpha = alpha
-    self._couple = couple
-    self._coupling_strength = coupling_strength
-    self._dt = time_step
-    self._set_gait(gait)
-
-    # set oscillator initial conditions  
-    self.X[0,:] = np.random.rand(4) * .1
-    self.X[1,:] = self.PHI[0,:] 
-
-    # save body and foot shaping
-    self._ground_clearance = ground_clearance 
-    self._ground_penetration = ground_penetration
-    self._robot_height = robot_height 
-    self._des_step_len = des_step_len
-
-    # for RL
-    self.use_RL = use_RL
-    self._omega_rl = np.zeros(4)
-    self._mu_rl = np.zeros(4) 
-    self._max_step_len_rl = max_step_len_rl
-    if use_RL:
-      self.X[0,:] = MU_LOW # mapping MU_LOW=1 to MU_UPP=2
-
-
-
-  def _set_gait(self,gait):
-    """ For coupling oscillators in phase space. 
-    [TODO] update all coupling matrices
+    Foot Order is FR, FL, RR, RL
+    (Front Right, Front Left, Rear Right, Rear Left)
     """
-    self.PHI_trot = np.zeros((4,4))
-    self.PHI_walk = np.zeros((4,4))
-    self.PHI_bound = np.zeros((4,4))
-    self.PHI_pace = np.zeros((4,4))
 
-    if gait == "TROT":
-      self.PHI = self.PHI_trot
-    elif gait == "PACE":
-      self.PHI = self.PHI_pace
-    elif gait == "BOUND":
-      self.PHI = self.PHI_bound
-    elif gait == "WALK":
-      self.PHI = self.PHI_walk
-    else:
-      raise ValueError( gait + 'not implemented.')
+    def __init__(self,
+                 mu=1 ** 2,  # intrinsic amplitude, converges to sqrt(mu)
+                 omega_swing=5 * 2 * np.pi,  # frequency in swing phase (can edit)
+                 omega_stance=2 * 2 * np.pi,  # frequency in stance phase (can edit)
+                 gait="TROT",  # Gait, can be TROT, WALK, PACE, BOUND, etc.
+                 alpha=50,  # amplitude convergence factor
+                 coupling_strength=1,  # coefficient to multiply coupling matrix
+                 couple=True,  # whether oscillators should be coupled
+                 time_step=0.001,  # time step
+                 ground_clearance=0.07,  # foot swing height
+                 ground_penetration=0.01,  # foot stance penetration into ground
+                 robot_height=0.3,  # in nominal case (standing)
+                 des_step_len=0.05,  # desired step length
+                 max_step_len_rl=0.1,  # max step length, for RL scaling
+                 use_RL=False  # whether to learn parameters with RL
+                 ):
 
+        ###############
+        # initialize CPG data structures: amplitude is row 0, and phase is row 1
+        self.X = np.zeros((2, 4))
+        self.X_dot = np.zeros((2, 4))
 
-  def update(self):
-    """ Update oscillator states. """
+        # save parameters
+        self._mu = mu
+        self._omega_swing = omega_swing
+        self._omega_stance = omega_stance
+        self._alpha = alpha
+        self._couple = couple
+        self._coupling_strength = coupling_strength
+        self._dt = time_step
+        self._set_gait(gait)
 
-    # update parameters, integrate
-    if not self.use_RL:
-      self._integrate_hopf_equations()
-    else:
-      self._integrate_hopf_equations_rl()
-    
-    # map CPG variables to Cartesian foot xz positions (Equations 8, 9) 
-    x = np.zeros(4) # [TODO]
-    z = np.zeros(4) # [TODO]
+        # set oscillator initial conditions
+        self.X[0, :] = np.random.rand(4) * .1
+        self.X[1, :] = self.PHI[0, :]
 
-    # scale x by step length
-    if not self.use_RL:
-      # use des step len, fixed
-      return x, z
-    else:
-      # RL uses amplitude to set max step length
-      r = np.clip(self.X[0,:],MU_LOW,MU_UPP) 
-      return -self._max_step_len_rl * (r - MU_LOW) * np.cos(self.X[1,:]), z
+        # save body and foot shaping
+        self._ground_clearance = ground_clearance
+        self._ground_penetration = ground_penetration
+        self._robot_height = robot_height
+        self._des_step_len = des_step_len
 
-      
-        
-  def _integrate_hopf_equations(self):
-    """ Hopf polar equations and integration. Use equations 6 and 7. """
-    # bookkeeping - save copies of current CPG states 
-    X = self.X.copy()
-    X_dot_prev = self.X_dot.copy() 
-    X_dot = np.zeros((2,4))
+        # for RL
+        self.use_RL = use_RL
+        self._omega_rl = np.zeros(4)
+        self._mu_rl = np.zeros(4)
+        self._max_step_len_rl = max_step_len_rl
+        if use_RL:
+            self.X[0, :] = MU_LOW  # mapping MU_LOW=1 to MU_UPP=2
 
-    # loop through each leg's oscillator
-    for i in range(4):
-      # get r_i, theta_i from X
-      r, theta = 0, 0 # [TODO]
-      # compute r_dot (Equation 6)
-      r_dot = 0 # [TODO]
-      # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
-      theta_dot = 0 # [TODO]
+    def _set_gait(self, gait):
+        """ For coupling oscillators in phase space.
+        [TODO] update all coupling matrices
+        """
+        phi_trot = np.array([0.5, 0, 0, 0.5])
+        phi_walk = np.array([0.5, 0, 0.25, 0.75])
+        phi_bound = np.array([0.5, 0.5, 0, 0])
+        phi_pace = np.array([0.5, 0, 0.5, 0])
+        self.PHI_trot = np.array(
+            [phi_trot[0] - phi_trot, phi_trot[1] - phi_trot, phi_trot[2] - phi_trot, phi_trot[3] - phi_trot])
+        self.PHI_walk = np.array(
+            [phi_walk[0] - phi_walk, phi_walk[1] - phi_walk, phi_walk[2] - phi_walk, phi_walk[3] - phi_walk])
+        self.PHI_bound = np.array(
+            [phi_bound[0] - phi_bound, phi_bound[1] - phi_bound, phi_bound[2] - phi_bound, phi_bound[3] - phi_bound])
+        self.PHI_pace = np.array(
+            [phi_pace[0] - phi_pace, phi_pace[1] - phi_pace, phi_pace[2] - phi_pace, phi_pace[3] - phi_pace])
 
-      # loop through other oscillators to add coupling (Equation 7)
-      if self._couple:
-        theta_dot += 0 # [TODO]
+        if gait == "TROT":
+            self.PHI = self.PHI_trot
+        elif gait == "PACE":
+            self.PHI = self.PHI_pace
+        elif gait == "BOUND":
+            self.PHI = self.PHI_bound
+        elif gait == "WALK":
+            self.PHI = self.PHI_walk
+        else:
+            raise ValueError(gait + 'not implemented.')
 
-      # set X_dot[:,i]
-      X_dot[:,i] = [r_dot, theta_dot]
+    def update(self):
+        """ Update oscillator states. """
 
-    # integrate 
-    self.X = np.zeros((2,4)) # [TODO]
-    self.X_dot = X_dot
-    # mod phase variables to keep between 0 and 2pi
-    self.X[1,:] = self.X[1,:] % (2*np.pi)
+        # update parameters, integrate
+        if not self.use_RL:
+            self._integrate_hopf_equations()
+        else:
+            self._integrate_hopf_equations_rl()
 
+        # map CPG variables to Cartesian foot xz positions (Equations 8, 9)
+        x = np.zeros(4)  # [TODO]
+        z = np.zeros(4)  # [TODO]
 
-  ###################### Helper functions for accessing CPG States
-  def get_r(self):
-    """ Get CPG amplitudes (r) """
-    return self.X[0,:]
+        # scale x by step length
+        if not self.use_RL:
+            # use des step len, fixed
+            return x, z
+        else:
+            # RL uses amplitude to set max step length
+            r = np.clip(self.X[0, :], MU_LOW, MU_UPP)
+            return -self._max_step_len_rl * (r - MU_LOW) * np.cos(self.X[1, :]), z
 
-  def get_theta(self):
-    """ Get CPG phases (theta) """
-    return self.X[1,:]
+    def _integrate_hopf_equations(self):
+        """ Hopf polar equations and integration. Use equations 6 and 7. """
+        # bookkeeping - save copies of current CPG states
+        X = self.X.copy()
+        X_dot_prev = self.X_dot.copy()
+        X_dot = np.zeros((2, 4))
 
-  def get_dr(self):
-    """ Get CPG amplitude derivatives (r_dot) """
-    return self.X_dot[0,:]
+        # loop through each leg's oscillator
+        for i in range(4):
+            # get r_i, theta_i from X
+            r, theta = 0, 0  # [TODO]
+            # compute r_dot (Equation 6)
+            r_dot = 0  # [TODO]
+            # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
+            theta_dot = 0  # [TODO]
 
-  def get_dtheta(self):
-    """ Get CPG phase derivatives (theta_dot) """
-    return self.X_dot[1,:]
+            # loop through other oscillators to add coupling (Equation 7)
+            if self._couple:
+                theta_dot += 0  # [TODO]
 
-  ###################### Functions for setting parameters for RL
-  def set_omega_rl(self, omegas):
-    """ Set intrinisc frequencies. """
-    self._omega_rl = omegas 
+            # set X_dot[:,i]
+            X_dot[:, i] = [r_dot, theta_dot]
 
-  def set_mu_rl(self, mus):
-    """ Set intrinsic amplitude setpoints. """
-    self._mu_rl = mus
+        # integrate
+        self.X = np.zeros((2, 4))  # [TODO]
+        self.X_dot = X_dot
+        # mod phase variables to keep between 0 and 2pi
+        self.X[1, :] = self.X[1, :] % (2 * np.pi)
 
-  def _integrate_hopf_equations_rl(self):
-    """ Hopf polar equations and integration, using quantities set by RL """
-    # bookkeeping - save copies of current CPG states 
-    X = self.X.copy()
-    X_dot_prev = self.X_dot.copy() 
-    X_dot = np.zeros((2,4))
+    ###################### Helper functions for accessing CPG States
+    def get_r(self):
+        """ Get CPG amplitudes (r) """
+        return self.X[0, :]
 
-    # loop through each leg's oscillator, find current velocities
-    for i in range(4):
-      # get r_i, theta_i from X
-      r, theta = X[:,i]
-      # amplitude (use mu from RL, i.e. self._mu_rl[i])
-      r_dot = 0  # [TODO]
-      # phase (use omega from RL, i.e. self._omega_rl[i])
-      theta_dot = 0 # [TODO]
+    def get_theta(self):
+        """ Get CPG phases (theta) """
+        return self.X[1, :]
 
-      X_dot[:,i] = [r_dot, theta_dot]
+    def get_dr(self):
+        """ Get CPG amplitude derivatives (r_dot) """
+        return self.X_dot[0, :]
 
-    # integrate 
-    self.X = X + (X_dot_prev + X_dot) * self._dt / 2
-    self.X_dot = X_dot
-    self.X[1,:] = self.X[1,:] % (2*np.pi)
+    def get_dtheta(self):
+        """ Get CPG phase derivatives (theta_dot) """
+        return self.X_dot[1, :]
+
+    ###################### Functions for setting parameters for RL
+    def set_omega_rl(self, omegas):
+        """ Set intrinisc frequencies. """
+        self._omega_rl = omegas
+
+    def set_mu_rl(self, mus):
+        """ Set intrinsic amplitude setpoints. """
+        self._mu_rl = mus
+
+    def _integrate_hopf_equations_rl(self):
+        """ Hopf polar equations and integration, using quantities set by RL """
+        # bookkeeping - save copies of current CPG states
+        X = self.X.copy()
+        X_dot_prev = self.X_dot.copy()
+        X_dot = np.zeros((2, 4))
+
+        # loop through each leg's oscillator, find current velocities
+        for i in range(4):
+            # get r_i, theta_i from X
+            r, theta = X[:, i]
+            # amplitude (use mu from RL, i.e. self._mu_rl[i])
+            r_dot = 0  # [TODO]
+            # phase (use omega from RL, i.e. self._omega_rl[i])
+            theta_dot = 0  # [TODO]
+
+            X_dot[:, i] = [r_dot, theta_dot]
+
+        # integrate
+        self.X = X + (X_dot_prev + X_dot) * self._dt / 2
+        self.X_dot = X_dot
+        self.X[1, :] = self.X[1, :] % (2 * np.pi)
