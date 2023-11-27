@@ -30,6 +30,7 @@
 
 """ Run CPG """
 import numpy as np
+import matplotlib.pyplot as plt
 
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
@@ -57,12 +58,13 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       )
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP)
+cpg = HopfNetwork(time_step=TIME_STEP, gait="BOUND")
 
 TEST_STEPS = int(10 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
+joint_pos = []
 
 
 ############## Sample Gains
@@ -83,6 +85,7 @@ for j in range(TEST_STEPS):
     dq = env.robot.GetMotorVelocities()
 
     # loop through desired foot positions and calculate torques
+    joint_pos_input_vec = []
     for i in range(4):
         q_leg = q[i*3:(i+1)*3]
         dq_leg = dq[i*3:(i+1)*3]
@@ -93,7 +96,7 @@ for j in range(TEST_STEPS):
         # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
         leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
         # Add joint PD contribution to tau for leg i (Equation 4)
-        tau += kp @ (leg_q - q_leg) + kd @ (-dq_leg)  # [TODO]
+        tau += kp * (leg_q - q_leg) + kd * (-dq_leg)  # [TODO]
 
         # add Cartesian PD contribution
         if ADD_CARTESIAN_PD:
@@ -106,6 +109,8 @@ for j in range(TEST_STEPS):
             # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
+            joint_pos_input_vec.append(pos)
+
         # Set tau for legi in action vector
         action[3 * i:3 * i + 3] = tau
 
@@ -113,12 +118,13 @@ for j in range(TEST_STEPS):
     env.step(action)
 
     # [TODO] save any CPG or robot states
+    joint_pos.append(joint_pos_input_vec)
 
 #####################################################
 # PLOTS
 #####################################################
 # example
-# fig = plt.figure()
-# plt.plot(t,joint_pos[1,:], label='FR thigh')
-# plt.legend()
-# plt.show()
+fig = plt.figure()
+plt.plot(t,joint_pos[:,1], label='FR thigh')
+plt.legend()
+plt.show()
