@@ -47,7 +47,7 @@ TIME_STEP = 0.001
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
 
-env = QuadrupedGymEnv(render=False,  # visualize
+env = QuadrupedGymEnv(render=True,  # visualize
                       on_rack=False,  # useful for debugging!
                       isRLGymInterface=False,  # not using RL
                       time_step=TIME_STEP,
@@ -58,7 +58,7 @@ env = QuadrupedGymEnv(render=False,  # visualize
                       )
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP)
+cpg = HopfNetwork(time_step=TIME_STEP, gait="BOUND")
 
 TEST_STEPS = int(10 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
@@ -96,7 +96,7 @@ for j in range(TEST_STEPS):
         # call inverse kinematics to get corresponding joint angles (see ComputeInverseKinematics() in quadruped.py)
         leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
         # Add joint PD contribution to tau for leg i (Equation 4)
-        tau += kp @ (leg_q - q_leg) + kd @ (-dq_leg)  # [TODO]
+        tau += kp * (leg_q - q_leg) + kd * (-dq_leg)  # [TODO]
 
         # add Cartesian PD contribution
         if ADD_CARTESIAN_PD:
