@@ -108,6 +108,8 @@ class HopfNetwork():
     self.PHI_bound = np.array([[0, 0, 0.5*2*np.pi, 0.5*2*np.pi], [0, 0, 0.5*2*np.pi, 0.5*2*np.pi], [-0.5*2*np.pi, -0.5*2*np.pi, 0, 0], [-0.5*2*np.pi, -0.5*2*np.pi, 0, 0]])
     self.PHI_pace = np.array([[0, 0.5*2*np.pi, 0, 0.5*2*np.pi], [-0.5*2*np.pi, 0, -0.5*2*np.pi, 0], [0, 0.5*2*np.pi, 0, 0.5*2*np.pi], [-0.5*2*np.pi, 0, -0.5*2*np.pi, 0]])
 
+    
+    
     if gait == "TROT":
       self.PHI = self.PHI_trot
     elif gait == "PACE":
@@ -130,8 +132,8 @@ class HopfNetwork():
       self._integrate_hopf_equations_rl()
     
     # map CPG variables to Cartesian foot xz positions (Equations 8, 9) 
-    x = -self._des_step_len*self.X[0]*np.cos(self.X[1]) # [TODO]
-    z = -self._robot_height + self._ground_clearance*np.sin(self.X[1])*(np.sin(self.X[1]) > 0) + self._ground_penetration*np.sin(self.X[1])*(np.sin(self.X[1]) <= 0) # [TODO]
+    x = -self._des_step_len*self.X[0,:]*np.cos(self.X[1,:]) # [TODO]
+    z = -self._robot_height + self._ground_clearance*np.sin(self.X[1,:])*(np.sin(self.X[1,:]) > 0) + self._ground_penetration*np.sin(self.X[1,:])*(np.sin(self.X[1,:]) <= 0) # [TODO]
 
     # scale x by step length
     if not self.use_RL:
@@ -158,9 +160,9 @@ class HopfNetwork():
       # compute r_dot (Equation 6)
       r_dot = self._alpha*(self._mu - r**2)*r # [TODO]
       # determine whether oscillator i is in swing or stance phase to set natural frequency omega_swing or omega_stance (see Section 3)
-      if (0 <= theta % 2*np.pi) and (theta % 2*np.pi > np.pi): 
+      if (0 <= (theta % 2*np.pi)) and ((theta % 2*np.pi) < np.pi): 
         omega = self._omega_swing
-      elif (np.pi <= theta % 2*np.pi) and (theta % 2*np.pi >= 2*np.pi): 
+      else:
         omega = self._omega_stance
 
       theta_dot = omega # [TODO]
@@ -168,7 +170,7 @@ class HopfNetwork():
       # loop through other oscillators to add coupling (Equation 7)
       if self._couple:
         for j in range(4):
-          theta_dot += X[0,j]*self._coupling_strength*np.sin(X(1,i) - X(1,j) - self.PHI[i,j]) # [TODO]
+          theta_dot += X[0,j]*self._coupling_strength*np.sin(X[1,j] - X[1,i] - self.PHI[i,j]) # [TODO]
 
       # set X_dot[:,i]
       X_dot[:,i] = [r_dot, theta_dot]
@@ -224,7 +226,7 @@ class HopfNetwork():
 
       if self._couple:
         for j in range(4):
-          theta_dot += X[0,j]*self._coupling_strength*np.sin(X(1,i) - X(1,j) - self.PHI[i,j]) # [TODO]  
+          theta_dot += X[0,j]*self._coupling_strength*np.sin(X[1,j] - X[1,i] - self.PHI[i,j]) # [TODO]  
 
       X_dot[:,i] = [r_dot, theta_dot]
 
