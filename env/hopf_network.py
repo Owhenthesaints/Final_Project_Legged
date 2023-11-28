@@ -103,9 +103,9 @@ class HopfNetwork():
         [TODO] update all coupling matrices
         """
         phi_trot = np.array([0.5, 0, 0, 0.5]) * 2 * np.pi
-        phi_walk = np.array([0.5, 0, 0.25, 0.75])
-        phi_bound = np.array([0.5, 0.5, 0, 0])
-        phi_pace = np.array([0.5, 0, 0.5, 0])
+        phi_walk = np.array([0.5, 0, 0.25, 0.75]) * 2 * np.pi
+        phi_bound = np.array([0.5, 0.5, 0, 0]) * 2* np.pi
+        phi_pace = np.array([0.5, 0, 0.5, 0]) * 2* np.pi
         self.PHI_trot = np.array(
             [phi_trot[0] - phi_trot, phi_trot[1] - phi_trot, phi_trot[2] - phi_trot, phi_trot[3] - phi_trot])
 

@@ -58,7 +58,7 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       )
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP, gait="BOUND")
+cpg = HopfNetwork(time_step=TIME_STEP, gait="PACE")
 
 TEST_STEPS = int(10 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
@@ -69,7 +69,7 @@ joint_pos = []
 
 ############## Sample Gains
 # joint PD gains
-kp = np.array([100, 100, 100])
+kp = np.array([200, 200, 200])
 kd = np.array([2, 2, 2])
 # Cartesian PD gains
 kpCartesian = np.diag([500] * 3)
