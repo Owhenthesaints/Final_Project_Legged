@@ -359,7 +359,19 @@ class QuadrupedGymEnv(gym.Env):
   def _reward_lr_course(self):
     """ Implement your reward function here. How will you improve upon the above? """
     # [TODO] add your reward function. 
-    return 0
+   
+    
+    # minimize yaw deviation to goal (necessary?)
+    yaw_reward = 0 # -0.01 * np.abs(angle) 
+
+    # minimize energy 
+    energy_reward = 0 
+    for tau,vel in zip(self._dt_motor_torques,self._dt_motor_velocities):
+      energy_reward += np.abs(np.dot(tau,vel)) * self._time_step
+
+    reward =  yaw_reward - 0.001 * energy_reward 
+    
+    return max(reward,0) # keep rewards positive
 
   def _reward(self):
     """ Get reward depending on task"""
@@ -416,15 +428,15 @@ class QuadrupedGymEnv(gym.Env):
     action = np.zeros(12)
     for i in range(4):
       # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
-      # [TODO]
+      J, foot_pos = self.robot.ComputeJacobianAndPosition(i)  # [TODO]
       # desired foot position i (from RL above)
-      Pd = np.zeros(3) # [TODO]
+      Pd = des_foot_pos[3*i:3*(i+1)]      # [TODO]
       # desired foot velocity i
       vd = np.zeros(3) 
       # foot velocity in leg frame i (Equation 2)
-      # [TODO]
+      foot_vel = J@qd  # [TODO]
       # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-      tau = np.zeros(3) # [TODO]
+      tau = J.T@(kpCartesian@(Pd-foot_pos)+kdCartesian@(vd-foot_vel)) # [TODO]
 
       action[3*i:3*i+3] = tau
 
@@ -465,9 +477,9 @@ class QuadrupedGymEnv(gym.Env):
       z = zs[i]
 
       # call inverse kinematics to get corresponding joint angles
-      q_des = np.zeros(3) # [TODO]
+      q_des = self.robot.ComputeInverseKinematics([x,y,z],i) # [TODO]
       # Add joint PD contribution to tau
-      tau = np.zeros(3) # [TODO] 
+      tau = kp*(q_des-q)+kd*(-dq) # [TODO] 
 
       # add Cartesian PD contribution (as you wish)
       # tau +=
