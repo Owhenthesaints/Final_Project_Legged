@@ -73,7 +73,7 @@ VIDEO_LOG_DIRECTORY = 'videos/' + datetime.datetime.now().strftime("vid-%Y-%m-%d
 # Implemented observation spaces for deep reinforcement learning: 
 #   "DEFAULT":    motor angles and velocities, body orientation
 #   "LR_COURSE_OBS":  [TODO: what should you include? what is reasonable to measure on the real system? CPG states?] 
-
+LR_course_obs=["CPG_states", "sensor_readings", "body_orientation"]
 # Tasks to be learned with reinforcement learning
 #     - "FWD_LOCOMOTION"
 #         reward forward progress only

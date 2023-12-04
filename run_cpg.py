@@ -106,7 +106,7 @@ for j in range(TEST_STEPS):
       # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
       J, pos = env.robot.ComputeJacobianAndPosition(i)# [TODOne] 
       # Get current foot velocity in leg frame (Equation 2)
-      # [TODO] 
+      v = J @ dq_leg # [TODOne] 
       # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
       tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos)) # [TODOne]
       joint_pos_input_vec.append(pos) #TODOne
