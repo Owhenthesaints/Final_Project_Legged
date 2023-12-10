@@ -311,6 +311,7 @@ class QuadrupedGymEnv(gym.Env):
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
         # minimize energy
         energy_reward = 0
+
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
             energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
 
@@ -472,11 +473,12 @@ class QuadrupedGymEnv(gym.Env):
             x = xs[i]
             y = sideSign[i] * foot_y  # careful of sign
             z = zs[i]
+            des_q = np.array([x,y,z])
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = np.zeros(3)  # [TODO]
+            q_des = self.robot.ComputeInverseKinematics(i, des_q)
             # Add joint PD contribution to tau
-            tau = np.zeros(3)  # [TODO]
+            tau = kp*(des_q-q)+kd*(-dq)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
             # tau +=

@@ -56,6 +56,7 @@ LEARNING_ALG = "SAC";  USE_GPU = True
 #                "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
 #                "observation_space_mode": "LR_COURSE_OBS"}
 env_configs = {}
+env_configs['task_env']="FLAGRUN"
 
 if USE_GPU and LEARNING_ALG=="SAC":
     gpu_arg = "auto" 

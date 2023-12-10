@@ -29,8 +29,8 @@
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
 """ Run CPG """
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
@@ -60,16 +60,15 @@ env = QuadrupedGymEnv(render=True,  # visualize
 # initialize Hopf Network, supply gait
 cpg = HopfNetwork(time_step=TIME_STEP, gait="PACE")
 
-TEST_STEPS = int(10 / (TIME_STEP))
+TEST_STEPS = int(3 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
-joint_pos = []
-
+xyz_position_global = []
 
 ############## Sample Gains
 # joint PD gains
-kp = np.array([200, 200, 200])
+kp = np.array([100, 100, 100])
 kd = np.array([2, 2, 2])
 # Cartesian PD gains
 kpCartesian = np.diag([500] * 3)
@@ -85,10 +84,10 @@ for j in range(TEST_STEPS):
     dq = env.robot.GetMotorVelocities()
 
     # loop through desired foot positions and calculate torques
-    joint_pos_input_vec = []
+    xyz_pos = []
     for i in range(4):
-        q_leg = q[i*3:(i+1)*3]
-        dq_leg = dq[i*3:(i+1)*3]
+        q_leg = q[i * 3:(i + 1) * 3]
+        dq_leg = dq[i * 3:(i + 1) * 3]
         # initialize torques for legi
         tau = np.zeros(3)
         # get desired foot i pos (xi, yi, zi) in leg frame
@@ -109,7 +108,7 @@ for j in range(TEST_STEPS):
             # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
-            joint_pos_input_vec.append(pos)
+            xyz_pos.append(pos)
 
         # Set tau for legi in action vector
         action[3 * i:3 * i + 3] = tau
@@ -118,13 +117,20 @@ for j in range(TEST_STEPS):
     env.step(action)
 
     # [TODO] save any CPG or robot states
-    joint_pos.append(joint_pos_input_vec)
+    xyz_position_global.append(xyz_pos)
 
 #####################################################
 # PLOTS
 #####################################################
 # example
+fr_xyz = np.array([row[0] for row in xyz_position_global])
+fl_xyz = np.array([row[1] for row in xyz_position_global])
+rr_xyz = np.array([row[2] for row in xyz_position_global])
+rl_xyz = np.array([row[3] for row in xyz_position_global])
 fig = plt.figure()
-plt.plot(t,joint_pos[:,1], label='FR thigh')
+plt.plot(t, fr_xyz[:,1], label='FR y')
+plt.plot(t, fr_xyz[:,0], label='FR x', color='red')
+plt.plot(t, fr_xyz[:,2], label='FR z', color='magenta')
 plt.legend()
 plt.show()
+
