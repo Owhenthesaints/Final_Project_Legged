@@ -56,6 +56,7 @@ LEARNING_ALG = "SAC";  USE_GPU = True
 #                "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
 #                "observation_space_mode": "LR_COURSE_OBS"}
 env_configs = {}
+env_configs['task_env']="FLAGRUN"
 
 if USE_GPU and LEARNING_ALG=="SAC":
     gpu_arg = "auto" 
@@ -143,4 +144,3 @@ model.save( os.path.join(SAVE_PATH, "rl_model" ) )
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl" )) 
 if LEARNING_ALG == "SAC": # save replay buffer 
     model.save_replay_buffer(os.path.join(SAVE_PATH,"off_policy_replay_buffer"))
-
