@@ -103,9 +103,9 @@ class HopfNetwork():
         [TODO] update all coupling matrices
         """
         phi_trot = np.array([0.5, 0, 0, 0.5]) * 2 * np.pi
-        phi_walk = np.array([0.5, 0, 0.25, 0.75])
-        phi_bound = np.array([0.5, 0.5, 0, 0])
-        phi_pace = np.array([0.5, 0, 0.5, 0])
+        phi_walk = np.array([0.5, 0, 0.25, 0.75]) * 2 * np.pi
+        phi_bound = np.array([0.5, 0.5, 0, 0]) * 2* np.pi
+        phi_pace = np.array([0.5, 0, 0.5, 0]) * 2* np.pi
         self.PHI_trot = np.array(
             [phi_trot[0] - phi_trot, phi_trot[1] - phi_trot, phi_trot[2] - phi_trot, phi_trot[3] - phi_trot])
 
@@ -227,7 +227,7 @@ class HopfNetwork():
             # get r_i, theta_i from X
             r, theta = X[:, i]
             # amplitude (use mu from RL, i.e. self._mu_rl[i])
-            r_dot = self._alpha*(self._mu-r**2)*r
+            r_dot = self._alpha*(self._mu_rl-r**2)*r
             # phase (use omega from RL, i.e. self._omega_rl[i])
             theta_dot = self._omega_rl
             if self._couple:
