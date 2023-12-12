@@ -187,8 +187,10 @@ class QuadrupedGymEnv(gym.Env):
             self._observation_noise_stdev = 0.01  #
         else:
             self._observation_noise_stdev = 0.0
-
         # other bookkeeping
+        # check if previous time was in contact
+        self.__previous_touch = [False, False, False, False]
+        self.__contact_counter = [0, 0, 0, 0]
         self._num_bullet_solver_iterations = int(300 / action_repeat)
         self._env_step_counter = 0
         self._sim_step_counter = 0
@@ -301,10 +303,6 @@ class QuadrupedGymEnv(gym.Env):
         """Decide whether we should stop the episode and reset the environment. """
         return self.is_fallen()
 
-    def calculate_frequency(self):
-        _, _, _, contact = self.robot.GetContactInfo()
-
-
     def _reward_fwd_locomotion(self, des_vel_x=0.5):
         """Learn forward locomotion at a desired velocity. """
         # track the desired velocity
@@ -325,7 +323,6 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  - 0.01 * energy_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
-
 
         return max(reward, 0)  # keep rewards positive
 
@@ -434,9 +431,9 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO]
             J, pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[3*i:3*(i+1)]
+            Pd = des_foot_pos[3 * i:3 * (i + 1)]
             # desired foot velocity i
-            vd = J @ qd[3*i:3*(i+1)]
+            vd = J @ qd[3 * i:3 * (i + 1)]
             # foot velocity in leg frame i (Equation 2)
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
@@ -479,12 +476,13 @@ class QuadrupedGymEnv(gym.Env):
             x = xs[i]
             y = sideSign[i] * foot_y  # careful of sign
             z = zs[i]
-            des_q = np.array([x,y,z])
+            des_q = np.array([x, y, z])
 
             # call inverse kinematics to get corresponding joint angles
             q_des = self.robot.ComputeInverseKinematics(i, des_q)
             # Add joint PD contribution to tau
-            tau = kp*(q_des-q)+kd*(-dq)  # [TODO]
+            tau = kp[3 * i:3 * (i + 1)] * (q_des - q[3 * i:3 * (i + 1)]) + kd[3 * i:3 * (i + 1)] * (
+                -dq[3 * i:3 * (i + 1)])  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
             tau += self.ScaleActionToCartesianPos(actions)[3 * i:3 * i + 3]
@@ -756,6 +754,18 @@ class QuadrupedGymEnv(gym.Env):
                                                lineToXYZ,
                                                lineColorRGB=color,
                                                lifeTime=lifeTime)
+
+    def __calculate_frequency(self):
+        _, _, _, contacts = self.robot.GetContactInfo()
+        frequencies = [0, 0, 0, 0]
+        for index, contact in enumerate(contacts):
+            if self.__previous_touch[index] and not contact:
+                self.__previous_touch[index] = False
+            elif not self.__previous_touch and contact:
+                self.__contact_counter[index] += 1
+                self.__previous_touch[index] = True
+            frequencies[index] = self.__contact_counter[index] / self._env_step_counter
+        return frequencies
 
     def get_sim_time(self):
         """ Get current simulation time. """
