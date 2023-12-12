@@ -79,6 +79,7 @@ class HopfNetwork():
         self._coupling_strength = coupling_strength
         self._dt = time_step
         self._set_gait(gait)
+        self.GAIT = gait
 
         # set oscillator initial conditions
         self.X[0, :] = np.random.rand(4) * .1
