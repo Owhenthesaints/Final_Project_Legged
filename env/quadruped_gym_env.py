@@ -430,7 +430,7 @@ class QuadrupedGymEnv(gym.Env):
             # desired foot position i (from RL above)
             Pd = des_foot_pos[i]
             # desired foot velocity i
-            vd = J.T @ qd
+            vd = J @ qd
             # foot velocity in leg frame i (Equation 2)
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
