@@ -301,6 +301,10 @@ class QuadrupedGymEnv(gym.Env):
         """Decide whether we should stop the episode and reset the environment. """
         return self.is_fallen()
 
+    def calculate_frequency(self):
+        _, _, _, contact = self.robot.GetContactInfo()
+
+
     def _reward_fwd_locomotion(self, des_vel_x=0.5):
         """Learn forward locomotion at a desired velocity. """
         # track the desired velocity
@@ -311,6 +315,7 @@ class QuadrupedGymEnv(gym.Env):
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
         # minimize energy
         energy_reward = 0
+        #
 
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
             energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
@@ -320,6 +325,7 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  - 0.01 * energy_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
+
 
         return max(reward, 0)  # keep rewards positive
 
@@ -426,11 +432,11 @@ class QuadrupedGymEnv(gym.Env):
         for i in range(4):
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
             # [TODO]
-            J, pos = np.array(self.robot.ComputeJacobianAndPosition(i))
+            J, pos = self.robot.ComputeJacobianAndPosition(i)
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[i]
+            Pd = des_foot_pos[3*i:3*(i+1)]
             # desired foot velocity i
-            vd = J @ qd
+            vd = J @ qd[3*i:3*(i+1)]
             # foot velocity in leg frame i (Equation 2)
             # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
@@ -478,10 +484,10 @@ class QuadrupedGymEnv(gym.Env):
             # call inverse kinematics to get corresponding joint angles
             q_des = self.robot.ComputeInverseKinematics(i, des_q)
             # Add joint PD contribution to tau
-            tau = kp*(des_q-q)+kd*(-dq)  # [TODO]
+            tau = kp*(q_des-q)+kd*(-dq)  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
-            # tau +=
+            tau += self.ScaleActionToCartesianPos(actions)[3 * i:3 * i + 3]
 
             action[3 * i:3 * i + 3] = tau
 
