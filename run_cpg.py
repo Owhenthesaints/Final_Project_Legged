@@ -29,8 +29,8 @@
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
 """ Run CPG """
-import numpy as np
 import matplotlib.pyplot as plt
+import numpy as np
 
 from env.hopf_network import HopfNetwork
 from env.quadruped_gym_env import QuadrupedGymEnv
@@ -60,16 +60,16 @@ env = QuadrupedGymEnv(render=True,  # visualize
 # initialize Hopf Network, supply gait
 cpg = HopfNetwork(time_step=TIME_STEP, gait="PACE")
 
-TEST_STEPS = int(10 / (TIME_STEP))
+TEST_STEPS = int(3 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
-joint_pos = []
-
+xyz_position_global = []
+joint_angles = []
 
 ############## Sample Gains
 # joint PD gains
-kp = np.array([200, 200, 200])
+kp = np.array([100, 100, 100])
 kd = np.array([2, 2, 2])
 # Cartesian PD gains
 kpCartesian = np.diag([500] * 3)
@@ -85,10 +85,11 @@ for j in range(TEST_STEPS):
     dq = env.robot.GetMotorVelocities()
 
     # loop through desired foot positions and calculate torques
-    joint_pos_input_vec = []
+    xyz_pos = []
+    joint_angles.append(np.reshape(q, (4, 3)))
     for i in range(4):
-        q_leg = q[i*3:(i+1)*3]
-        dq_leg = dq[i*3:(i+1)*3]
+        q_leg = q[i * 3:(i + 1) * 3]
+        dq_leg = dq[i * 3:(i + 1) * 3]
         # initialize torques for legi
         tau = np.zeros(3)
         # get desired foot i pos (xi, yi, zi) in leg frame
@@ -109,7 +110,7 @@ for j in range(TEST_STEPS):
             # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
-            joint_pos_input_vec.append(pos)
+            xyz_pos.append(pos)
 
         # Set tau for legi in action vector
         action[3 * i:3 * i + 3] = tau
@@ -118,13 +119,78 @@ for j in range(TEST_STEPS):
     env.step(action)
 
     # [TODO] save any CPG or robot states
-    joint_pos.append(joint_pos_input_vec)
+    xyz_position_global.append(xyz_pos)
 
 #####################################################
 # PLOTS
 #####################################################
 # example
-fig = plt.figure()
-plt.plot(t,joint_pos[:,1], label='FR thigh')
-plt.legend()
+fr_xyz = np.array([row[0] for row in xyz_position_global])
+fl_xyz = np.array([row[1] for row in xyz_position_global])
+rr_xyz = np.array([row[2] for row in xyz_position_global])
+rl_xyz = np.array([row[3] for row in xyz_position_global])
+fr_joint = np.array([row[0] for row in joint_angles])
+fl_joint = np.array([row[1] for row in joint_angles])
+rr_joint = np.array([row[2] for row in joint_angles])
+rl_joint = np.array([row[3] for row in joint_angles])
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
+
+axes[0, 1].plot(t, fr_xyz[:, 1], label='FR y', color='blue')
+axes[0, 1].plot(t, fr_xyz[:, 0], label='FR x', color='red')
+axes[0, 1].plot(t, fr_xyz[:, 2], label='FR z', color='magenta')
+axes[0, 1].set_title('FR position')
+axes[0, 1].legend()
+
+axes[0, 0].plot(t, fl_xyz[:, 0], label='FL x', color='red')
+axes[0, 0].plot(t, fl_xyz[:, 1], label='FL y', color='blue')
+axes[0, 0].plot(t, fl_xyz[:, 2], label='FL z', color='magenta')
+axes[0, 0].set_title('FL position')
+axes[0, 0].legend()
+
+axes[1, 1].plot(t, rr_xyz[:, 0], label='RR x', color='red')
+axes[1, 1].plot(t, rr_xyz[:, 1], label='RR y', color='blue')
+axes[1, 1].plot(t, rr_xyz[:, 2], label='RR z', color='magenta')
+axes[1, 1].set_title('RR position')
+axes[1, 1].legend()
+
+axes[1, 0].plot(t, rl_xyz[:, 0], label='RL x', color='red')
+axes[1, 0].plot(t, rl_xyz[:, 1], label='RL y', color='blue')
+axes[1, 0].plot(t, rl_xyz[:, 2], label='RL z', color='magenta')
+axes[1, 0].set_title('RL position')
+axes[1, 0].legend()
+
+plt.tight_layout()
+plt.show()
+
+del fig
+del axes
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10,5))
+
+axes[0, 1].plot(t, fr_joint[:, 0], label='FR q0', color='red')
+axes[0, 1].plot(t, fr_xyz[:, 1], label='FR q1', color='blue')
+axes[0, 1].plot(t, fr_xyz[:, 2], label='FR q2', color='magenta')
+axes[0, 1].legend()
+axes[0, 1].set_title('FR angles')
+
+axes[0, 0].plot(t, fl_joint[:, 0], label='FL q0', color='red')
+axes[0, 0].plot(t, fl_xyz[:, 1], label='FL q1', color='blue')
+axes[0, 0].plot(t, fl_xyz[:, 2], label='FL q2', color='magenta')
+axes[0, 0].legend()
+axes[0, 0].set_title('FL angles')
+
+axes[1, 1].plot(t, rr_joint[:, 0], label='RR q0', color='red')
+axes[1, 1].plot(t, rr_joint[:, 1], label='RR q1', color='blue')
+axes[1, 1].plot(t, rr_joint[:, 2], label='RR q2', color='magenta')
+axes[1, 1].legend()
+axes[1, 1].set_title('RR angles')
+
+axes[1, 0].plot(t, rl_joint[:, 0], label='RL q0', color='red')
+axes[1, 0].plot(t, rl_joint[:, 1], label='RL q1', color='blue')
+axes[1, 0].plot(t, rl_joint[:, 2], label='RL q2', color='magenta')
+axes[1, 0].legend()
+axes[1, 0].set_title('RL angles')
+
+plt.tight_layout()
+
 plt.show()
