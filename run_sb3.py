@@ -46,7 +46,7 @@ from env.quadruped_gym_env import QuadrupedGymEnv
 
 
 LEARNING_ALG = "PPO" # or "SAC"
-LOAD_NN = False # if you want to initialize training with a previous model 
+LOAD_NN = True
 NUM_ENVS = 1    # how many pybullet environments to create for data collection
 USE_GPU = False # make sure to install all necessary drivers 
 
@@ -65,7 +65,7 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + '' # add path
+    log_dir = interm_dir + 'RL_ESSAI_1_NORMAL'
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
     model_name = get_latest_model(log_dir)
 

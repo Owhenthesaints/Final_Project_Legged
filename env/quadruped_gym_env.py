@@ -313,16 +313,24 @@ class QuadrupedGymEnv(gym.Env):
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
         # minimize energy
         energy_reward = 0
-        #
 
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
             energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
+
+        # take into account the frequency
+        frequency_penalty = 0.05 * np.mean(self.__calculate_frequency())
+
+        # take into account max indices
+        max_indices = np.argsort(self.robot.GetMotorTorques())[-2:]
+        large_torques_reward = 0.05 * np.linalg.norm(np.array(self.robot.GetMotorTorques()[max_indices]))
 
         reward = vel_tracking_reward \
                  + yaw_reward \
                  + drift_reward \
                  - 0.01 * energy_reward \
-                 - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
+                 - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1])) \
+                 - frequency_penalty \
+                 + large_torques_reward
 
         return max(reward, 0)  # keep rewards positive
 
@@ -759,13 +767,19 @@ class QuadrupedGymEnv(gym.Env):
         _, _, _, contacts = self.robot.GetContactInfo()
         frequencies = [0, 0, 0, 0]
         for index, contact in enumerate(contacts):
-            if self.__previous_touch[index] and not contact:
+            # updating counters logic
+            if self.__previous_touch[index] and contact == 0:
                 self.__previous_touch[index] = False
-            elif not self.__previous_touch and contact:
+            elif not self.__previous_touch[index] and contact == 1:
                 self.__contact_counter[index] += 1
                 self.__previous_touch[index] = True
-            frequencies[index] = self.__contact_counter[index] / self._env_step_counter
-        return frequencies
+
+            # for the first 1000 timesteps of sim the values are not representative
+            if self._env_step_counter < 500:
+                return frequencies
+
+            frequencies[index] = self.__contact_counter[index] / (self._env_step_counter * self._time_step)
+        return np.array(frequencies)
 
     def get_sim_time(self):
         """ Get current simulation time. """
