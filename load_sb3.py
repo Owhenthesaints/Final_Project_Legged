@@ -58,7 +58,8 @@ from utils.file_utils import get_latest_model, load_all_results
 LEARNING_ALG = "SAC"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + 'RL_ESSAI_1_NORMAL'
+log_dir = interm_dir + '121423010518'#ça c'est flag run train une fois
+#121323004433
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
