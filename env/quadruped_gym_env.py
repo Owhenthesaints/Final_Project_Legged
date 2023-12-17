@@ -321,7 +321,7 @@ class QuadrupedGymEnv(gym.Env):
         frequency_penalty = 0.05 * np.mean(self.__calculate_frequency())
 
         # take into account max indices
-        large_torques_penalty = np.clip(0.03 * np.linalg.norm(np.array(self.robot.GetMotorTorques())),0, 4)
+        height_penalty = 200 * np.abs(self.robot.GetBasePosition()[2] - 0.3)
 
         reward = vel_tracking_reward \
             + yaw_reward \
@@ -329,7 +329,7 @@ class QuadrupedGymEnv(gym.Env):
             - 0.01 * energy_reward \
             - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1])) \
             - frequency_penalty \
-            - large_torques_penalty
+            - height_penalty
 
         return max(reward, 0)  # keep rewards positive
 
