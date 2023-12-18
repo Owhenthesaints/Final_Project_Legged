@@ -45,20 +45,19 @@ from utils.file_utils import get_latest_model
 from env.quadruped_gym_env import QuadrupedGymEnv
 
 
-LEARNING_ALG = "PPO" # or "SAC"
-LOAD_NN = True # if you want to initialize training with a previous model 
+# LEARNING_ALG = "PPO" # or "SAC"
+LOAD_NN = True   # if you want to initialize training with a previous model 
 NUM_ENVS = 1    # how many pybullet environments to create for data collection
-USE_GPU = False # make sure to install all necessary drivers 
+USE_GPU = True # make sure to install all necessary drivers 
 
 LEARNING_ALG = "SAC";  USE_GPU = True
 # after implementing, you will want to test how well the agent learns with your MDP: 
-# env_configs = {"motor_control_mode":"CPG",#PD #CPD   #et on regarde après c'est quoi le mieux
+# env_configs = {"motor_control_mode":"CPG",
 #                "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
 #                "observation_space_mode": "LR_COURSE_OBS"}
-env_configs = {}
-env_configs['task_env']="FLAGRUN"
-env_configs['motor_control_mode']="PD"
-env_configs['obstervation_space_mode']="LR_COURSE_OBS"
+env_configs = {"motor_control_mode":"CARTESIAN_PD",
+               "task_env": "FLAGRUN" #  "LR_COURSE_TASK",
+                }
 
 if USE_GPU and LEARNING_ALG=="SAC":
     gpu_arg = "auto" 
@@ -67,7 +66,7 @@ else:
 
 if LOAD_NN:
     interm_dir = "./logs/intermediate_models/"
-    log_dir = interm_dir + 'Sylvain' # add path
+    log_dir = interm_dir + '121723195735' # add path
     stats_path = os.path.join(log_dir, "vec_normalize.pkl")
     model_name = get_latest_model(log_dir)
 
@@ -140,9 +139,10 @@ if LOAD_NN:
     print("\nLoaded model", model_name, "\n")
 
 # Learn and save (may need to train for longer)
-model.learn(total_timesteps=1000000, log_interval=1,callback=checkpoint_callback)
+model.learn(total_timesteps=900000, log_interval=1,callback=checkpoint_callback)
 # Don't forget to save the VecNormalize statistics when saving the agent
 model.save( os.path.join(SAVE_PATH, "rl_model" ) ) 
 env.save(os.path.join(SAVE_PATH, "vec_normalize.pkl" )) 
 if LEARNING_ALG == "SAC": # save replay buffer 
     model.save_replay_buffer(os.path.join(SAVE_PATH,"off_policy_replay_buffer"))
+
