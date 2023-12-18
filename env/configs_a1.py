@@ -91,8 +91,8 @@ NOMINAL_FOOT_POS_LEG_FRAME = np.array([ 0, -HIP_LINK_LENGTH, -0.25,
 # Actuation limits/gains, position, and velocity limits
 ##################################################################################
 # joint limits on real system
-UPPER_ANGLE_JOINT = np.array([ 0.802851455917,  4.18879020479, -0.916297857297 ] * NUM_LEGS)
-LOWER_ANGLE_JOINT = np.array([-0.802851455917, -1.0471975512 , -2.69653369433  ] * NUM_LEGS)
+# UPPER_ANGLE_JOINT = np.array([ 0.802851455917,  4.18879020479, -0.916297857297 ] * NUM_LEGS)
+# LOWER_ANGLE_JOINT = np.array([-0.802851455917, -1.0471975512 , -2.69653369433  ] * NUM_LEGS)
 
 # modified range in simulation (min observation space for RL)
 UPPER_ANGLE_JOINT = np.array([ 0.2,  DEFAULT_THIGH_ANGLE + 0.4, DEFAULT_CALF_ANGLE + 0.4 ] * NUM_LEGS)
@@ -106,8 +106,8 @@ VELOCITY_LIMITS = np.asarray( [21.0] * NUM_MOTORS )
 MOTOR_KP = [100.0, 100.0, 100.0] * NUM_LEGS
 MOTOR_KD = [2.0, 2.0, 2.0] * NUM_LEGS
 
-# MOTOR_KP = [55,55,55] * NUM_LEGS
-# MOTOR_KD = [0.8,0.8,0.8] * NUM_LEGS
+MOTOR_KP = [55,55,55] * NUM_LEGS
+MOTOR_KD = [0.8,0.8,0.8] * NUM_LEGS
 
 # Sample Cartesian Gains
 kpCartesian = np.diag([500,500,500])
@@ -116,9 +116,10 @@ kdCartesian = np.diag([10,10,10])
 kpCartesian = np.diag([700,700,700])
 kdCartesian = np.diag([12,12,12])
 
-# for simulation only 
-kpCartesian = np.diag([1000,1000,1000])
-kdCartesian = np.diag([20,20,20])
+
+# # for simulation only 
+# kpCartesian = np.diag([1000,1000,1000])
+# kdCartesian = np.diag([20,20,20])
 
 ##################################################################################
 # Hip, thigh, calf strings, naming conventions from URDF (don't modify)
