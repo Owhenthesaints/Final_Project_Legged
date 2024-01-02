@@ -28,13 +28,22 @@
 #
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
-import os, sys
-import gym
+import os
 import numpy as np
-import time
-import matplotlib
+
 import matplotlib.pyplot as plt
-from sys import platform
+from stable_baselines3 import PPO, SAC
+# from stable_baselines3.common.cmd_util import make_vec_env
+from stable_baselines3.common.env_util import make_vec_env  # fix for newer versions of stable-baselines3
+# stable-baselines3
+from stable_baselines3.common.monitor import load_results
+from stable_baselines3.common.vec_env import VecNormalize
+
+from env.quadruped_gym_env import QuadrupedGymEnv
+from utils.file_utils import get_latest_model
+# utils
+from utils.utils import plot_results
+
 # may be helpful depending on your system
 # if platform =="darwin": # mac
 #   import PyQt5
@@ -42,30 +51,17 @@ from sys import platform
 # else: # linux
 #   matplotlib.use('TkAgg')
 
-# stable-baselines3
-from stable_baselines3.common.monitor import load_results 
-from stable_baselines3.common.vec_env import VecNormalize
-from stable_baselines3 import PPO, SAC
-# from stable_baselines3.common.cmd_util import make_vec_env
-from stable_baselines3.common.env_util import make_vec_env # fix for newer versions of stable-baselines3
-
-from env.quadruped_gym_env import QuadrupedGymEnv
-# utils
-from utils.utils import plot_results
-from utils.file_utils import get_latest_model, load_all_results
-
-
 LEARNING_ALG = "SAC"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + 'RL_ESSAI_1_NORMAL'
+log_dir = interm_dir + 'CARTESIAN-PD_DIFF-OBS'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
 env_config = {}
 env_config['render'] = True
 env_config['record_video'] = False
-env_config['add_noise'] = False 
+env_config['add_noise'] = False
 # env_config['competition_env'] = True
 
 # get latest model and normalization stats, and plot 
@@ -73,15 +69,15 @@ stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
 monitor_results = load_results(log_dir)
 print(monitor_results)
-plot_results([log_dir] , 10e10, 'timesteps', LEARNING_ALG + ' ')
-plt.show() 
+plot_results([log_dir], 10e10, 'timesteps', LEARNING_ALG + ' ')
+plt.show()
 
 # reconstruct env 
 env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, n_envs=1)
 env = VecNormalize.load(stats_path, env)
-env.training = False    # do not update stats at test time
-env.norm_reward = False # reward normalization is not needed at test time
+env.training = False  # do not update stats at test time
+env.norm_reward = False  # reward normalization is not needed at test time
 
 # load model
 if LEARNING_ALG == "PPO":
@@ -95,9 +91,11 @@ episode_reward = 0
 
 # [TODO] initialize arrays to save data from simulation 
 #
+speed = np.array([])
+feet_arrays = np.array([])
 
 for i in range(2000):
-    action, _states = model.predict(obs,deterministic=False) # sample at test time? ([TODO]: test)
+    action, _states = model.predict(obs, deterministic=False)  # sample at test time? ([TODO]: test)
     obs, rewards, dones, info = env.step(action)
     episode_reward += rewards
     if dones:
@@ -108,5 +106,7 @@ for i in range(2000):
     # [TODO] save data from current robot states for plots 
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
     #
-    
+    np.append(speed, env.get_speed())
+
+
 # [TODO] make plots:
