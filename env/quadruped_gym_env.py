@@ -31,6 +31,7 @@
 """This file implements the gym environment for a quadruped. """
 import inspect
 import os
+from typing import Union
 
 # so we can import files
 currentdir = os.path.dirname(os.path.abspath(inspect.getfile(inspect.currentframe())))
@@ -198,6 +199,7 @@ class QuadrupedGymEnv(gym.Env):
         self._last_frame_time = 0.0  # for rendering
         self._MAX_EP_LEN = EPISODE_LENGTH  # max sim time in seconds, arbitrary
         self._action_bound = 1.0
+        self.robot: Union[quadruped.Quadruped, None] = None
 
         # if using CPG
         self.setupCPG()
@@ -216,6 +218,12 @@ class QuadrupedGymEnv(gym.Env):
 
     def setupCPG(self):
         self._cpg = HopfNetwork(use_RL=True)
+
+    def get_speed(self):
+        return np.array(self.robot.GetBaseLinearVelocity())
+
+    def get_position_leg(self, leg_id: int):
+        return self.robot.ComputeJacobianAndPosition(leg_id)[1]
 
     ######################################################################################
     # RL Observation and Action spaces
