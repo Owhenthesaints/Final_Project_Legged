@@ -29,9 +29,9 @@
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
 import os
-import numpy as np
 
 import matplotlib.pyplot as plt
+import numpy as np
 from stable_baselines3 import PPO, SAC
 # from stable_baselines3.common.cmd_util import make_vec_env
 from stable_baselines3.common.env_util import make_vec_env  # fix for newer versions of stable-baselines3
@@ -54,7 +54,7 @@ from utils.utils import plot_results
 LEARNING_ALG = "SAC"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + 'CARTESIAN-PD_DIFF-OBS'
+log_dir = interm_dir + 'PD-FWD_LOC-DEFAULT-SAC'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
@@ -91,10 +91,11 @@ episode_reward = 0
 
 # [TODO] initialize arrays to save data from simulation 
 #
-speed = np.array([])
+time_steps = 1000
+speed = np.array(np.empty((0, 3)))
 feet_arrays = np.array([])
 
-for i in range(2000):
+for i in range(time_steps):
     action, _states = model.predict(obs, deterministic=False)  # sample at test time? ([TODO]: test)
     obs, rewards, dones, info = env.step(action)
     episode_reward += rewards
@@ -106,7 +107,12 @@ for i in range(2000):
     # [TODO] save data from current robot states for plots 
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
     #
-    np.append(speed, env.get_speed())
-
+    speed = np.append(speed, [env.envs[0].env.get_speed()], axis=0)
 
 # [TODO] make plots:
+plt.figure()
+plt.plot(range(time_steps), speed[:, 0], label='speed x', color='blue')
+plt.plot(range(time_steps), speed[:, 1], label='speed y', color='purple')
+plt.plot(range(time_steps), speed[:, 2], label='speed z', color='orange')
+plt.title('speeds')
+plt.show()

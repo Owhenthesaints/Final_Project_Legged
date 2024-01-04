@@ -220,9 +220,9 @@ class QuadrupedGymEnv(gym.Env):
         self._cpg = HopfNetwork(use_RL=True)
 
     def get_speed(self):
-        return self.robot.GetBaseLinearVelocity()
+        return np.array(self.robot.GetBaseLinearVelocity())
 
-    def get_position(self, leg_id: int):
+    def get_position_leg(self, leg_id: int):
         return self.robot.ComputeJacobianAndPosition(leg_id)[1]
 
     ######################################################################################
