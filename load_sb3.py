@@ -93,7 +93,7 @@ episode_reward = 0
 #
 time_steps = 1000
 speed = np.array(np.empty((0, 3)))
-feet_arrays = np.array([])
+feet_arrays = np.empty((0, 4, 3))
 
 for i in range(time_steps):
     action, _states = model.predict(obs, deterministic=False)  # sample at test time? ([TODO]: test)
@@ -108,11 +108,43 @@ for i in range(time_steps):
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
     #
     speed = np.append(speed, [env.envs[0].env.get_speed()], axis=0)
+    feet_array = np.array([env.envs[0].env.get_position_leg(j) for j in range(4)])
+    feet_arrays = np.append(feet_arrays, [feet_array], axis=0)
 
+time_steps = range(time_steps)
 # [TODO] make plots:
-plt.figure()
-plt.plot(range(time_steps), speed[:, 0], label='speed x', color='blue')
-plt.plot(range(time_steps), speed[:, 1], label='speed y', color='purple')
-plt.plot(range(time_steps), speed[:, 2], label='speed z', color='orange')
+plt.figure(figsize=(8, 4))
+plt.plot(time_steps, speed[:, 0], label='speed x', color='blue')
+plt.plot(time_steps, speed[:, 1], label='speed y', color='purple')
+plt.plot(time_steps, speed[:, 2], label='speed z', color='orange')
 plt.title('speeds')
+plt.show()
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
+
+axes[0, 1].plot(time_steps, feet_arrays[:, 0, 1], label='FR y', color='blue')
+axes[0, 1].plot(time_steps, feet_arrays[:, 0, 0], label='FR x', color='red')
+axes[0, 1].plot(time_steps, feet_arrays[:, 0, 2], label='FR z', color='magenta')
+axes[0, 1].set_title('FR position')
+axes[0, 1].legend()
+
+axes[0, 0].plot(time_steps, feet_arrays[:, 1, 0], label='FL x', color='red')
+axes[0, 0].plot(time_steps, feet_arrays[:, 1, 1], label='FL y', color='blue')
+axes[0, 0].plot(time_steps, feet_arrays[:, 1, 2], label='FL z', color='magenta')
+axes[0, 0].set_title('FL position')
+axes[0, 0].legend()
+
+axes[1, 1].plot(time_steps, feet_arrays[:, 2, 0], label='RR x', color='red')
+axes[1, 1].plot(time_steps, feet_arrays[:, 2, 1], label='RR y', color='blue')
+axes[1, 1].plot(time_steps, feet_arrays[:, 2, 2], label='RR z', color='magenta')
+axes[1, 1].set_title('RR position')
+axes[1, 1].legend()
+
+axes[1, 0].plot(time_steps, feet_arrays[:, 3, 0], label='RL x', color='red')
+axes[1, 0].plot(time_steps, feet_arrays[:, 3, 1], label='RL y', color='blue')
+axes[1, 0].plot(time_steps, feet_arrays[:, 3, 2], label='RL z', color='magenta')
+axes[1, 0].set_title('RL position')
+axes[1, 0].legend()
+
+plt.tight_layout()
 plt.show()
