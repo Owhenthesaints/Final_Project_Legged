@@ -118,6 +118,7 @@ plt.plot(time_steps, speed[:, 0], label='speed x', color='blue')
 plt.plot(time_steps, speed[:, 1], label='speed y', color='purple')
 plt.plot(time_steps, speed[:, 2], label='speed z', color='orange')
 plt.title('speeds')
+plt.legend()
 plt.show()
 
 fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
