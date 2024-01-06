@@ -28,22 +28,13 @@
 #
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
-import os
-
-import matplotlib.pyplot as plt
+import os, sys
+import gym
 import numpy as np
-from stable_baselines3 import PPO, SAC
-# from stable_baselines3.common.cmd_util import make_vec_env
-from stable_baselines3.common.env_util import make_vec_env  # fix for newer versions of stable-baselines3
-# stable-baselines3
-from stable_baselines3.common.monitor import load_results
-from stable_baselines3.common.vec_env import VecNormalize
-
-from env.quadruped_gym_env import QuadrupedGymEnv
-from utils.file_utils import get_latest_model
-# utils
-from utils.utils import plot_results
-
+import time
+import matplotlib
+import matplotlib.pyplot as plt
+from sys import platform
 # may be helpful depending on your system
 # if platform =="darwin": # mac
 #   import PyQt5
@@ -51,33 +42,51 @@ from utils.utils import plot_results
 # else: # linux
 #   matplotlib.use('TkAgg')
 
+# stable-baselines3
+from stable_baselines3.common.monitor import load_results 
+from stable_baselines3.common.vec_env import VecNormalize
+from stable_baselines3 import PPO, SAC
+# from stable_baselines3.common.cmd_util import make_vec_env
+from stable_baselines3.common.env_util import make_vec_env # fix for newer versions of stable-baselines3
+
+from env.quadruped_gym_env import QuadrupedGymEnv
+# utils
+from utils.utils import plot_results
+from utils.file_utils import get_latest_model, load_all_results
+
+
 LEARNING_ALG = "SAC"
 interm_dir = "./logs/intermediate_models/"
 # path to saved models, i.e. interm_dir + '121321105810'
-log_dir = interm_dir + 'PD-FWD_LOC-DEFAULT-SAC'
+log_dir = interm_dir + '121823100354'
 
 # initialize env configs (render at test time)
 # check ideal conditions, as well as robustness to UNSEEN noise during training
-env_config = {}
-env_config['render'] = True
+
+env_config = {"motor_control_mode":"PD",
+               "task_env": "FLAGRUN", #  "LR_COURSE_TASK",
+                "observation_space_mode": "DEFAULT"}
+
+# env_config = {}
+env_config['render'] = False
 env_config['record_video'] = False
-env_config['add_noise'] = False
-# env_config['competition_env'] = True
+env_config['add_noise'] = False 
+env_config['competition_env'] = False
 
 # get latest model and normalization stats, and plot 
 stats_path = os.path.join(log_dir, "vec_normalize.pkl")
 model_name = get_latest_model(log_dir)
 monitor_results = load_results(log_dir)
 print(monitor_results)
-plot_results([log_dir], 10e10, 'timesteps', LEARNING_ALG + ' ')
-plt.show()
+plot_results([log_dir] , 10e10, 'timesteps', LEARNING_ALG + ' ')
+# plt.show() 
 
 # reconstruct env 
 env = lambda: QuadrupedGymEnv(**env_config)
 env = make_vec_env(env, n_envs=1)
 env = VecNormalize.load(stats_path, env)
-env.training = False  # do not update stats at test time
-env.norm_reward = False  # reward normalization is not needed at test time
+env.training = False    # do not update stats at test time
+env.norm_reward = False # reward normalization is not needed at test time
 
 # load model
 if LEARNING_ALG == "PPO":
@@ -93,7 +102,11 @@ episode_reward = 0
 #
 time_steps = 1000
 speed = np.array(np.empty((0, 3)))
+base_position = np.array(np.empty((0, 3)))
 feet_arrays = np.empty((0, 4, 3))
+contact = np.empty((0,4))
+dist_goal = np.empty(0)
+
 
 for i in range(time_steps):
     action, _states = model.predict(obs, deterministic=False)  # sample at test time? ([TODO]: test)
@@ -108,8 +121,13 @@ for i in range(time_steps):
     # To get base position, for example: env.envs[0].env.robot.GetBasePosition() 
     #
     speed = np.append(speed, [env.envs[0].env.get_speed()], axis=0)
+    base_position = np.append(base_position, [env.envs[0].env.robot.GetBasePosition()], axis=0)
     feet_array = np.array([env.envs[0].env.get_position_leg(j) for j in range(4)])
     feet_arrays = np.append(feet_arrays, [feet_array], axis=0)
+    contact = np.append(contact, [env.envs[0].env.robot.GetContactInfo()[3]], axis=0)
+    if env_config["task_env"]=="FLAGRUN":
+        dist_goal = np.append(dist_goal, [env.envs[0].env.get_distance_and_angle_to_goal()[0]])
+    
 
 time_steps = range(time_steps)
 # [TODO] make plots:
@@ -119,7 +137,35 @@ plt.plot(time_steps, speed[:, 1], label='speed y', color='purple')
 plt.plot(time_steps, speed[:, 2], label='speed z', color='orange')
 plt.title('speeds')
 plt.legend()
-plt.show()
+# plt.show()
+
+plt.figure(figsize=(8, 4))
+plt.plot(time_steps, base_position[:, 0], label='x', color='blue')
+plt.plot(time_steps, base_position[:, 1], label='y', color='purple')
+plt.plot(time_steps, base_position[:, 2], label='z', color='orange')
+if env_config["task_env"]=="FLAGRUN":
+    plt.plot(time_steps, np.transpose(dist_goal), label='distance to goal', color='black')
+plt.title('base position')
+plt.legend()
+
+
+fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
+axes[0, 1].plot(time_steps, contact[:, 0],color='black')
+axes[0, 1].set_title('FR contact')
+
+axes[0, 0].plot(time_steps, contact[:, 1], color='black')
+axes[0, 0].set_title('FL contact')
+
+axes[1, 1].plot(time_steps, contact[:, 2], color='black')
+axes[1, 1].set_title('FL contact')
+
+axes[1, 0].plot(time_steps, contact[:, 3], color='black')
+axes[1, 0].set_title('RL contact')
+
+plt.tight_layout()
+
+
+
 
 fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
 
