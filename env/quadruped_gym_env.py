@@ -106,7 +106,7 @@ VIDEO_LOG_DIRECTORY = 'videos/' + datetime.datetime.now().strftime("vid-%Y-%m-%d
 
 
 EPISODE_LENGTH = 10  # how long before we reset the environment (max episode length for RL)
-MAX_FWD_VELOCITY = 1  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
+MAX_FWD_VELOCITY = 4  # to avoid exploiting simulator dynamics, cap max reward for body velocity 
 
 # CPG quantities
 MU_LOW = 1
@@ -136,7 +136,7 @@ class QuadrupedGymEnv(gym.Env):
             render=False,
             record_video=False,
             add_noise=True,
-            test_env=True,
+            test_env=False,
             competition_env=False,  # NOT ALLOWED FOR TRAINING!
             **kwargs):  # any extra arguments from legacy
         """Initialize the quadruped gym environment.
@@ -188,10 +188,8 @@ class QuadrupedGymEnv(gym.Env):
             self._observation_noise_stdev = 0.01  #
         else:
             self._observation_noise_stdev = 0.0
+
         # other bookkeeping
-        # check if previous time was in contact
-        self.__previous_touch = [False, False, False, False]
-        self.__contact_counter = [0, 0, 0, 0]
         self._num_bullet_solver_iterations = int(300 / action_repeat)
         self._env_step_counter = 0
         self._sim_step_counter = 0
@@ -241,8 +239,53 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Set observation upper and lower ranges. What are reasonable limits?
             # Note 50 is arbitrary below, you may have more or less
             # if using CPG-RL, remember to include limits on these
-            observation_high = (np.zeros(50) + OBSERVATION_EPS)
-            observation_low = (np.zeros(50) - OBSERVATION_EPS)
+            observation_high = (np.concatenate((
+                np.array([19.] * 3),
+                np.array([.1] * 3),
+                self._robot_config.UPPER_ANGLE_JOINT,
+                self._robot_config.VELOCITY_LIMITS,
+                self._robot_config.TORQUE_LIMITS,
+                np.array([1.0] * 4),
+                np.array([1.0] * 12),
+                np.array([5.0] * 12),
+                np.array([1.0] * 4),
+                np.array([400.0] * 4),
+            )) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((
+                np.array([-19.] * 3),
+                np.array([-.1] * 3),
+                self._robot_config.LOWER_ANGLE_JOINT,
+                -self._robot_config.VELOCITY_LIMITS,
+                -self._robot_config.TORQUE_LIMITS,
+                np.array([-1.0] * 4),
+                np.array([-1.0] * 12),
+                np.array([-5.0] * 12),
+                np.array([-1.0] * 4),
+                np.array([-1.0] * 4),
+            )) - OBSERVATION_EPS)
+        elif self._observation_space_mode == "OBS":
+            # [TODO] Set observation upper and lower ranges. What are reasonable limits?
+            # Note 50 is arbitrary below, you may have more or less
+            # if using CPG-RL, remember to include limits on these
+            observation_high = (np.concatenate((
+                np.array([19.] * 3),
+                np.array([.1] * 3),
+                self._robot_config.UPPER_ANGLE_JOINT,
+                self._robot_config.VELOCITY_LIMITS,
+                self._robot_config.TORQUE_LIMITS,
+                np.array([1.0] * 4),
+            )) + OBSERVATION_EPS)
+            observation_low = (np.concatenate((
+                np.array([-19.] * 3),
+                np.array([-.1] * 3),
+                self._robot_config.LOWER_ANGLE_JOINT,
+                -self._robot_config.VELOCITY_LIMITS,
+                -self._robot_config.TORQUE_LIMITS,
+                np.array([-1.0] * 4),
+            )) - OBSERVATION_EPS)
+
+            # observation_high = (np.zeros(50) + OBSERVATION_EPS)
+            # observation_low = (np.zeros(50) -  OBSERVATION_EPS)
         else:
             raise ValueError("observation space not defined or not intended")
 
@@ -270,7 +313,44 @@ class QuadrupedGymEnv(gym.Env):
             # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
             # if using the CPG, you can include states with self._cpg.get_r(), for example
             # 50 is arbitrary
-            self._observation = np.zeros(50)
+            foot_pos = []
+            foot_vel = []
+            dq = (self.robot.GetMotorVelocities().reshape(-1, 3)).T
+
+            for legid in range(4):
+                J, pos = self.robot.ComputeJacobianAndPosition(legid)
+                vel = np.matmul(J, dq[:, legid]).tolist()
+                foot_vel += vel
+                foot_pos += pos.tolist()
+            foot_vel = np.array(foot_vel)
+            foot_pos = np.array(foot_pos)
+            # Get observation space vectors
+            self._observation = np.concatenate((
+                self.robot.GetBaseLinearVelocity(),  # 3x1
+                self.robot.GetBaseAngularVelocity(),  # 3x1
+                self.robot.GetMotorAngles(),  # 12x1
+                self.robot.GetMotorVelocities(),  # 12x1
+                self.robot.GetMotorTorques(),  # 12x1
+                self.robot.GetBaseOrientation(),  # 4x1
+                foot_pos,  # 12x1
+                foot_vel,  # 12x1
+                np.array(self.robot.GetContactInfo()[3]),  # 4x1,
+                np.array(self.robot.GetContactInfo()[2]),  # 4x1
+            ))
+
+        elif self._observation_space_mode == "OBS":
+            # [TODO] Get observation from robot. What are reasonable measurements we could get on hardware?
+            # if using the CPG, you can include states with self._cpg.get_r(), for example
+            # 50 is arbitrary
+
+            self._observation = np.concatenate((
+                self.robot.GetBaseLinearVelocity(),  # 3x1
+                self.robot.GetBaseAngularVelocity(),  # 3x1
+                self.robot.GetMotorAngles(),  # 12x1
+                self.robot.GetMotorVelocities(),  # 12x1
+                self.robot.GetMotorTorques(),  # 12x1
+                self.robot.GetBaseOrientation(),  # 4x1
+            ))
 
         else:
             raise ValueError("observation space not defined or not intended")
@@ -311,7 +391,7 @@ class QuadrupedGymEnv(gym.Env):
         """Decide whether we should stop the episode and reset the environment. """
         return self.is_fallen()
 
-    def _reward_fwd_locomotion(self, des_vel_x=0.5):
+    def _reward_fwd_locomotion(self, des_vel_x=1):
         """Learn forward locomotion at a desired velocity. """
         # track the desired velocity
         vel_tracking_reward = 0.05 * np.exp(-1 / 0.25 * (self.robot.GetBaseLinearVelocity()[0] - des_vel_x) ** 2)
@@ -320,19 +400,44 @@ class QuadrupedGymEnv(gym.Env):
         # don't drift laterally
         drift_reward = -0.01 * abs(self.robot.GetBasePosition()[1])
         # minimize energy
-        energy_reward = 0
-        #
-
-        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
-            energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
+        # energy_reward = 0
+        # for tau,vel in zip(self._dt_motor_torques,self._dt_motor_velocities):
+        #   energy_reward += np.abs(np.dot(tau,vel)) * self._time_step
+        # constant robot height
+        height_reward = -0.05 * abs(self.robot.GetBasePosition()[2] - robot_config.INIT_POSITION[2])
+        # #minimum step height
+        # step_height_reward = 0
+        # for i in range(4):
+        #   if  not self.robot.GetContactInfo()[3][i]:
+        #     step_height_reward += -0.02 * abs((self.robot.ComputeJacobianAndPosition(i)[1][2]<0.03)*(self.robot.ComputeJacobianAndPosition(i)[1][2]-0.03))
 
         reward = vel_tracking_reward \
                  + yaw_reward \
                  + drift_reward \
-                 - 0.01 * energy_reward \
+                 + height_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
 
         return max(reward, 0)  # keep rewards positive
+
+        # """ Reward progress in the positive world x direction.  """
+        # current_base_position = self.robot.GetBasePosition()
+        # forward_reward = current_base_position[0] - self._last_base_position[0]
+        # self._last_base_position = current_base_position
+        # # clip reward to MAX_FWD_VELOCITY (avoid exploiting simulator dynamics)
+        # if MAX_FWD_VELOCITY < np.inf:
+        #   # calculate what max distance can be over last time interval based on max allowed fwd velocity
+        #   max_dist = MAX_FWD_VELOCITY * (self._time_step * self._action_repeat)
+        #   forward_reward = min( forward_reward, max_dist)
+
+        # return self._distance_weight * forward_reward
+        # """ Reward function only maximizing the x position"""
+        # current_position = self.robot.GetBasePosition()
+        # fwd_reward = current_position[0] - self._last_position[0]
+        # self._last_position = current_position
+
+        # forward_reward = min( forward_reward, max_dist)
+
+        # return self._distance_weight * forward_reward
 
     def get_distance_and_angle_to_goal(self):
         """ Helper to return distance and angle to current goal location. """
@@ -364,6 +469,8 @@ class QuadrupedGymEnv(gym.Env):
         # minimize yaw deviation to goal (necessary?)
         yaw_reward = 0  # -0.01 * np.abs(angle)
 
+        height_reward = -0.05 * abs(self.robot.GetBasePosition()[2] - robot_config.INIT_POSITION[2])
+
         # minimize energy
         energy_reward = 0
         for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
@@ -371,6 +478,7 @@ class QuadrupedGymEnv(gym.Env):
 
         reward = dist_reward \
                  + yaw_reward \
+                 + height_reward \
                  - 0.001 * energy_reward
 
         return max(reward, 0)  # keep rewards positive
@@ -378,7 +486,18 @@ class QuadrupedGymEnv(gym.Env):
     def _reward_lr_course(self):
         """ Implement your reward function here. How will you improve upon the above? """
         # [TODO] add your reward function.
-        return 0
+
+        # minimize yaw deviation to goal (necessary?)
+        yaw_reward = 0  # -0.01 * np.abs(angle)
+
+        # minimize energy
+        energy_reward = 0
+        for tau, vel in zip(self._dt_motor_torques, self._dt_motor_velocities):
+            energy_reward += np.abs(np.dot(tau, vel)) * self._time_step
+
+        reward = yaw_reward - 0.001 * energy_reward
+
+        return max(reward, 0)  # keep rewards positive
 
     def _reward(self):
         """ Get reward depending on task"""
@@ -436,16 +555,15 @@ class QuadrupedGymEnv(gym.Env):
         action = np.zeros(12)
         for i in range(4):
             # get Jacobian and foot position in leg frame for leg i (see ComputeJacobianAndPosition() in quadruped.py)
-            # [TODO]
-            J, pos = self.robot.ComputeJacobianAndPosition(i)
+            J, foot_pos = self.robot.ComputeJacobianAndPosition(i)  # [TODO]
             # desired foot position i (from RL above)
-            Pd = des_foot_pos[3 * i:3 * (i + 1)]
+            Pd = des_foot_pos[3 * i:3 * (i + 1)]  # [TODO]
             # desired foot velocity i
-            vd = J @ qd[3 * i:3 * (i + 1)]
+            vd = np.zeros(3)
             # foot velocity in leg frame i (Equation 2)
-            # [TODO]
+            foot_vel = J @ qd[3 * i:3 * i + 3]  # [TODO]
             # calculate torques with Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
-            tau = J.T @ (kpCartesian @ (Pd - pos) + kdCartesian @ (-vd))
+            tau = J.T @ (kpCartesian @ (Pd - foot_pos) + kdCartesian @ (vd - foot_vel))  # [TODO]
 
             action[3 * i:3 * i + 3] = tau
 
@@ -484,16 +602,15 @@ class QuadrupedGymEnv(gym.Env):
             x = xs[i]
             y = sideSign[i] * foot_y  # careful of sign
             z = zs[i]
-            des_q = np.array([x, y, z])
 
             # call inverse kinematics to get corresponding joint angles
-            q_des = self.robot.ComputeInverseKinematics(i, des_q)
+            q_des = self.robot.ComputeInverseKinematics(i, [x, y, z])  # [TODO]
             # Add joint PD contribution to tau
-            tau = kp[3 * i:3 * (i + 1)] * (q_des - q[3 * i:3 * (i + 1)]) + kd[3 * i:3 * (i + 1)] * (
-                -dq[3 * i:3 * (i + 1)])  # [TODO]
+            tau = kp[3 * i:3 * i + 3] * (q_des - q[3 * i:3 * i + 3]) + kd[3 * i:3 * i + 3] * (
+                -dq[3 * i:3 * i + 3])  # [TODO]
 
             # add Cartesian PD contribution (as you wish)
-            tau += self.ScaleActionToCartesianPos(actions)[3 * i:3 * i + 3]
+            # tau +=
 
             action[3 * i:3 * i + 3] = tau
 
@@ -762,18 +879,6 @@ class QuadrupedGymEnv(gym.Env):
                                                lineToXYZ,
                                                lineColorRGB=color,
                                                lifeTime=lifeTime)
-
-    def __calculate_frequency(self):
-        _, _, _, contacts = self.robot.GetContactInfo()
-        frequencies = [0, 0, 0, 0]
-        for index, contact in enumerate(contacts):
-            if self.__previous_touch[index] and not contact:
-                self.__previous_touch[index] = False
-            elif not self.__previous_touch and contact:
-                self.__contact_counter[index] += 1
-                self.__previous_touch[index] = True
-            frequencies[index] = self.__contact_counter[index] / self._env_step_counter
-        return frequencies
 
     def get_sim_time(self):
         """ Get current simulation time. """
