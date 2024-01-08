@@ -29,6 +29,8 @@
 # Copyright (c) 2022 EPFL, Guillaume Bellegarda
 
 """ Run CPG """
+from typing import Tuple
+
 import matplotlib.pyplot as plt
 import numpy as np
 
@@ -46,8 +48,9 @@ ADD_CARTESIAN_PD = True
 TIME_STEP = 0.001
 foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
+GAIT = "PACE"
 
-env = QuadrupedGymEnv(render=True,  # visualize
+env = QuadrupedGymEnv(render=False,  # visualize
                       on_rack=False,  # useful for debugging!
                       isRLGymInterface=False,  # not using RL
                       time_step=TIME_STEP,
@@ -58,13 +61,14 @@ env = QuadrupedGymEnv(render=True,  # visualize
                       )
 
 # initialize Hopf Network, supply gait
-cpg = HopfNetwork(time_step=TIME_STEP, gait="PACE")
+cpg = HopfNetwork(time_step=TIME_STEP, gait=GAIT)
 
 TEST_STEPS = int(3 / (TIME_STEP))
 t = np.arange(TEST_STEPS) * TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
 xyz_position_global = []
+dxyz_position_global = []
 joint_angles = []
 
 ############## Sample Gains
@@ -86,6 +90,7 @@ for j in range(TEST_STEPS):
 
     # loop through desired foot positions and calculate torques
     xyz_pos = []
+    dxyz_pos = []
     joint_angles.append(np.reshape(q, (4, 3)))
     for i in range(4):
         q_leg = q[i * 3:(i + 1) * 3]
@@ -111,6 +116,7 @@ for j in range(TEST_STEPS):
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
             xyz_pos.append(pos)
+            dxyz_pos.append(v)
 
         # Set tau for legi in action vector
         action[3 * i:3 * i + 3] = tau
@@ -120,77 +126,57 @@ for j in range(TEST_STEPS):
 
     # [TODO] save any CPG or robot states
     xyz_position_global.append(xyz_pos)
+    dxyz_position_global.append(dxyz_pos)
+
 
 #####################################################
 # PLOTS
 #####################################################
 # example
-fr_xyz = np.array([row[0] for row in xyz_position_global])
-fl_xyz = np.array([row[1] for row in xyz_position_global])
-rr_xyz = np.array([row[2] for row in xyz_position_global])
-rl_xyz = np.array([row[3] for row in xyz_position_global])
-fr_joint = np.array([row[0] for row in joint_angles])
-fl_joint = np.array([row[1] for row in joint_angles])
-rr_joint = np.array([row[2] for row in joint_angles])
-rl_joint = np.array([row[3] for row in joint_angles])
-fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
+def unpack(main_array: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    return np.array([row[0] for row in main_array]), np.array([row[1] for row in main_array]), np.array(
+        [row[2] for row in main_array]), np.array([row[3] for row in main_array])
 
-axes[0, 1].plot(t, fr_xyz[:, 1], label='FR y', color='blue')
-axes[0, 1].plot(t, fr_xyz[:, 0], label='FR x', color='red')
-axes[0, 1].plot(t, fr_xyz[:, 2], label='FR z', color='magenta')
-axes[0, 1].set_title('FR position')
-axes[0, 1].legend()
 
-axes[0, 0].plot(t, fl_xyz[:, 0], label='FL x', color='red')
-axes[0, 0].plot(t, fl_xyz[:, 1], label='FL y', color='blue')
-axes[0, 0].plot(t, fl_xyz[:, 2], label='FL z', color='magenta')
-axes[0, 0].set_title('FL position')
-axes[0, 0].legend()
+def plot(fr: np.ndarray, fl: np.ndarray, rr: np.ndarray, rl: np.ndarray, t: np.ndarray, gait_name: str,
+         indication: str = "position") -> None:
+    fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
 
-axes[1, 1].plot(t, rr_xyz[:, 0], label='RR x', color='red')
-axes[1, 1].plot(t, rr_xyz[:, 1], label='RR y', color='blue')
-axes[1, 1].plot(t, rr_xyz[:, 2], label='RR z', color='magenta')
-axes[1, 1].set_title('RR position')
-axes[1, 1].legend()
+    axes[0, 1].plot(t, fr[:, 1], label='FR y', color='blue')
+    axes[0, 1].plot(t, fr[:, 0], label='FR x', color='red')
+    axes[0, 1].plot(t, fr[:, 2], label='FR z', color='magenta')
+    axes[0, 1].set_title('FR ' + indication + ' ' + gait_name)
+    axes[0, 1].legend()
 
-axes[1, 0].plot(t, rl_xyz[:, 0], label='RL x', color='red')
-axes[1, 0].plot(t, rl_xyz[:, 1], label='RL y', color='blue')
-axes[1, 0].plot(t, rl_xyz[:, 2], label='RL z', color='magenta')
-axes[1, 0].set_title('RL position')
-axes[1, 0].legend()
+    axes[0, 0].plot(t, fl[:, 0], label='FL x', color='red')
+    axes[0, 0].plot(t, fl[:, 1], label='FL y', color='blue')
+    axes[0, 0].plot(t, fl[:, 2], label='FL z', color='magenta')
+    axes[0, 0].set_title('FL ' + indication + ' ' + gait_name)
+    axes[0, 0].legend()
 
-plt.tight_layout()
-plt.show()
+    axes[1, 1].plot(t, rr[:, 0], label='RR x', color='red')
+    axes[1, 1].plot(t, rr[:, 1], label='RR y', color='blue')
+    axes[1, 1].plot(t, rr[:, 2], label='RR z', color='magenta')
+    axes[1, 1].set_title('RR ' + indication + ' ' + gait_name)
+    axes[1, 1].legend()
 
-del fig
-del axes
+    axes[1, 0].plot(t, rl[:, 0], label='RL x', color='red')
+    axes[1, 0].plot(t, rl[:, 1], label='RL y', color='blue')
+    axes[1, 0].plot(t, rl[:, 2], label='RL z', color='magenta')
+    axes[1, 0].set_title('RL ' + indication + ' ' + gait_name)
+    axes[1, 0].legend()
 
-fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10,5))
+    plt.tight_layout()
+    plt.show()
 
-axes[0, 1].plot(t, fr_joint[:, 0], label='FR q0', color='red')
-axes[0, 1].plot(t, fr_xyz[:, 1], label='FR q1', color='blue')
-axes[0, 1].plot(t, fr_xyz[:, 2], label='FR q2', color='magenta')
-axes[0, 1].legend()
-axes[0, 1].set_title('FR angles')
+    del fig
+    del axes
 
-axes[0, 0].plot(t, fl_joint[:, 0], label='FL q0', color='red')
-axes[0, 0].plot(t, fl_xyz[:, 1], label='FL q1', color='blue')
-axes[0, 0].plot(t, fl_xyz[:, 2], label='FL q2', color='magenta')
-axes[0, 0].legend()
-axes[0, 0].set_title('FL angles')
 
-axes[1, 1].plot(t, rr_joint[:, 0], label='RR q0', color='red')
-axes[1, 1].plot(t, rr_joint[:, 1], label='RR q1', color='blue')
-axes[1, 1].plot(t, rr_joint[:, 2], label='RR q2', color='magenta')
-axes[1, 1].legend()
-axes[1, 1].set_title('RR angles')
+fr_xyz, fl_xyz, rr_xyz, rl_xyz = unpack(xyz_position_global)
+fr_joint, fl_joint, rr_joint, rl_joint = unpack(joint_angles)
+fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz = unpack(dxyz_position_global)
 
-axes[1, 0].plot(t, rl_joint[:, 0], label='RL q0', color='red')
-axes[1, 0].plot(t, rl_joint[:, 1], label='RL q1', color='blue')
-axes[1, 0].plot(t, rl_joint[:, 2], label='RL q2', color='magenta')
-axes[1, 0].legend()
-axes[1, 0].set_title('RL angles')
-
-plt.tight_layout()
-
-plt.show()
+plot(fr_xyz, fl_xyz, rr_xyz, rl_xyz, t, GAIT, "position")
+plot(fr_joint, fl_joint, rr_joint, rl_joint, t, GAIT, "angle")
+plot(fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz, t, GAIT, "speed feet")
