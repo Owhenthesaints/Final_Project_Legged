@@ -139,30 +139,30 @@ def unpack(main_array: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.nda
 
 
 def plot(fr: np.ndarray, fl: np.ndarray, rr: np.ndarray, rl: np.ndarray, t: np.ndarray, gait_name: str,
-         indication: str = "position") -> None:
+         indication: str = "position", labels: Tuple[str, str, str] = ("x", "y", "z")) -> None:
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
 
-    axes[0, 1].plot(t, fr[:, 1], label='FR y', color='blue')
-    axes[0, 1].plot(t, fr[:, 0], label='FR x', color='red')
-    axes[0, 1].plot(t, fr[:, 2], label='FR z', color='magenta')
+    axes[0, 1].plot(t, fr[:, 0], label=labels[0], color='red')
+    axes[0, 1].plot(t, fr[:, 1], label=labels[1], color='blue')
+    axes[0, 1].plot(t, fr[:, 2], label=labels[2], color='magenta')
     axes[0, 1].set_title('FR ' + indication + ' ' + gait_name)
     axes[0, 1].legend()
 
-    axes[0, 0].plot(t, fl[:, 0], label='FL x', color='red')
-    axes[0, 0].plot(t, fl[:, 1], label='FL y', color='blue')
-    axes[0, 0].plot(t, fl[:, 2], label='FL z', color='magenta')
+    axes[0, 0].plot(t, fl[:, 0], label=labels[0], color='red')
+    axes[0, 0].plot(t, fl[:, 1], label=labels[1], color='blue')
+    axes[0, 0].plot(t, fl[:, 2], label=labels[2], color='magenta')
     axes[0, 0].set_title('FL ' + indication + ' ' + gait_name)
     axes[0, 0].legend()
 
-    axes[1, 1].plot(t, rr[:, 0], label='RR x', color='red')
-    axes[1, 1].plot(t, rr[:, 1], label='RR y', color='blue')
-    axes[1, 1].plot(t, rr[:, 2], label='RR z', color='magenta')
+    axes[1, 1].plot(t, rr[:, 0], label=labels[0], color='red')
+    axes[1, 1].plot(t, rr[:, 1], label=labels[1], color='blue')
+    axes[1, 1].plot(t, rr[:, 2], label=labels[2], color='magenta')
     axes[1, 1].set_title('RR ' + indication + ' ' + gait_name)
     axes[1, 1].legend()
 
-    axes[1, 0].plot(t, rl[:, 0], label='RL x', color='red')
-    axes[1, 0].plot(t, rl[:, 1], label='RL y', color='blue')
-    axes[1, 0].plot(t, rl[:, 2], label='RL z', color='magenta')
+    axes[1, 0].plot(t, rl[:, 0], label=labels[0], color='red')
+    axes[1, 0].plot(t, rl[:, 1], label=labels[1], color='blue')
+    axes[1, 0].plot(t, rl[:, 2], label=labels[2], color='magenta')
     axes[1, 0].set_title('RL ' + indication + ' ' + gait_name)
     axes[1, 0].legend()
 
@@ -178,5 +178,5 @@ fr_joint, fl_joint, rr_joint, rl_joint = unpack(joint_angles)
 fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz = unpack(dxyz_position_global)
 
 plot(fr_xyz, fl_xyz, rr_xyz, rl_xyz, t, GAIT, "position")
-plot(fr_joint, fl_joint, rr_joint, rl_joint, t, GAIT, "angle")
+plot(fr_joint, fl_joint, rr_joint, rl_joint, t, GAIT, "angle", ("q0", "q1", "q2"))
 plot(fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz, t, GAIT, "speed feet")
