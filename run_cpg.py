@@ -68,8 +68,10 @@ t = np.arange(TEST_STEPS) * TIME_STEP
 
 # [TODO] initialize data structures to save CPG and robot states
 xyz_position_global = []
+des_xyz_position_global = []
 dxyz_position_global = []
 joint_angles = []
+des_joint_angles = []
 r_dr_array = []
 theta_dtheta_array = []
 
@@ -95,8 +97,11 @@ for j in range(TEST_STEPS):
 
     # loop through desired foot positions and calculate torques
     xyz_pos = []
+    des_xyz_pos = []
     dxyz_pos = []
+    des_joint_angle_loop = np.empty((0, 3))
     joint_angles.append(np.reshape(q, (4, 3)))
+
     for i in range(4):
         q_leg = q[i * 3:(i + 1) * 3]
         dq_leg = dq[i * 3:(i + 1) * 3]
@@ -108,6 +113,7 @@ for j in range(TEST_STEPS):
         leg_q = env.robot.ComputeInverseKinematics(i, leg_xyz)
         # Add joint PD contribution to tau for leg i (Equation 4)
         tau += kp * (leg_q - q_leg) + kd * (-dq_leg)  # [TODO]
+        des_joint_angle_loop = np.append(des_joint_angle_loop, [leg_q], axis=0)
 
         # add Cartesian PD contribution
         if ADD_CARTESIAN_PD:
@@ -121,6 +127,7 @@ for j in range(TEST_STEPS):
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
             xyz_pos.append(pos)
+            des_xyz_pos.append(leg_xyz)
             dxyz_pos.append(v)
 
         # Set tau for legi in action vector
@@ -130,8 +137,10 @@ for j in range(TEST_STEPS):
     env.step(action)
 
     # [TODO] save any CPG or robot states
+    des_joint_angles.append(des_joint_angle_loop)
     xyz_position_global.append(xyz_pos)
     dxyz_position_global.append(dxyz_pos)
+    des_xyz_position_global.append(des_xyz_pos)
 
 
 #####################################################
@@ -144,32 +153,51 @@ def unpack(main_array: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.nda
 
 
 def plot(fr: np.ndarray, fl: np.ndarray, rr: np.ndarray, rl: np.ndarray, t: np.ndarray, gait_name: str,
-         indication: str = "position", labels: Tuple[str, str, str] = ("x", "y", "z")) -> None:
+         indication: str = "position", des_fr: np.ndarray | None = None,
+         des_fl: np.ndarray | None = None, des_rr: np.ndarray | None = None, des_rl: np.ndarray | None = None,
+         labels: Tuple[str, str, str] = ("x", "y", "z")) -> None:
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
 
     axes[0, 1].plot(t, fr[:, 0], label=labels[0], color='red')
     axes[0, 1].plot(t, fr[:, 1], label=labels[1], color='blue')
     axes[0, 1].plot(t, fr[:, 2], label=labels[2], color='magenta')
     axes[0, 1].set_title('FR ' + indication + ' ' + gait_name)
-    axes[0, 1].legend()
 
     axes[0, 0].plot(t, fl[:, 0], label=labels[0], color='red')
     axes[0, 0].plot(t, fl[:, 1], label=labels[1], color='blue')
     axes[0, 0].plot(t, fl[:, 2], label=labels[2], color='magenta')
     axes[0, 0].set_title('FL ' + indication + ' ' + gait_name)
-    axes[0, 0].legend()
 
     axes[1, 1].plot(t, rr[:, 0], label=labels[0], color='red')
     axes[1, 1].plot(t, rr[:, 1], label=labels[1], color='blue')
     axes[1, 1].plot(t, rr[:, 2], label=labels[2], color='magenta')
     axes[1, 1].set_title('RR ' + indication + ' ' + gait_name)
-    axes[1, 1].legend()
 
     axes[1, 0].plot(t, rl[:, 0], label=labels[0], color='red')
     axes[1, 0].plot(t, rl[:, 1], label=labels[1], color='blue')
     axes[1, 0].plot(t, rl[:, 2], label=labels[2], color='magenta')
     axes[1, 0].set_title('RL ' + indication + ' ' + gait_name)
+    if des_fr is not None and des_fl is not None and des_rl is not None and des_rr is not None:
+        axes[0, 1].plot(t, des_fr[:, 0], label="desired " + labels[0])
+        axes[0, 1].plot(t, des_fr[:, 1], label="desired " + labels[1])
+        axes[0, 1].plot(t, des_fr[:, 2], label="desired " + labels[2])
+
+        axes[0, 0].plot(t, des_fl[:, 0], label="desired " + labels[0])
+        axes[0, 0].plot(t, des_fl[:, 1], label="desired " + labels[1])
+        axes[0, 0].plot(t, des_fl[:, 2], label="desired " + labels[2])
+
+        axes[1, 1].plot(t, des_rr[:, 0], label="desired " + labels[0])
+        axes[1, 1].plot(t, des_rr[:, 1], label="desired " + labels[1])
+        axes[1, 1].plot(t, des_rr[:, 2], label="desired " + labels[2])
+
+        axes[1, 0].plot(t, des_rl[:, 0], label="desired " + labels[0])
+        axes[1, 0].plot(t, des_rl[:, 1], label="desired " + labels[1])
+        axes[1, 0].plot(t, des_rl[:, 2], label="desired " + labels[2])
+
+    axes[0, 0].legend()
     axes[1, 0].legend()
+    axes[0, 1].legend()
+    axes[1, 1].legend()
 
     plt.tight_layout()
     plt.show()
@@ -180,10 +208,13 @@ def plot(fr: np.ndarray, fl: np.ndarray, rr: np.ndarray, rl: np.ndarray, t: np.n
 
 fr_xyz, fl_xyz, rr_xyz, rl_xyz = unpack(xyz_position_global)
 fr_joint, fl_joint, rr_joint, rl_joint = unpack(joint_angles)
+des_fr_joint, des_fl_joint, des_rr_joint, des_rl_joint = unpack(des_joint_angles)
 fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz = unpack(dxyz_position_global)
+des_fr_xyz, des_fl_xyz, des_rr_xyz, des_rl_xyz = unpack(des_xyz_position_global)
 
-plot(fr_xyz, fl_xyz, rr_xyz, rl_xyz, t, GAIT, "position")
-plot(fr_joint, fl_joint, rr_joint, rl_joint, t, GAIT, "angle", ("q0", "q1", "q2"))
+plot(fr_xyz, fl_xyz, rr_xyz, rl_xyz, t, GAIT, "position", des_fr_xyz, des_fl_xyz, des_rr_xyz, des_rl_xyz)
+plot(fr_joint, fl_joint, rr_joint, rl_joint, t, GAIT, "angle", des_fr_joint, des_fl_joint, des_rr_joint,
+     des_rl_joint, ("q0", "q1", "q2"))
 plot(fr_dxyz, fl_dxyz, rr_dxyz, rl_dxyz, t, GAIT, "speed feet")
 
 r_dr_array = np.array(r_dr_array)
