@@ -30,6 +30,7 @@
 
 """ Run CPG """
 from typing import Tuple
+from typing import Union
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -153,8 +154,9 @@ def unpack(main_array: list) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.nda
 
 
 def plot(fr: np.ndarray, fl: np.ndarray, rr: np.ndarray, rl: np.ndarray, t: np.ndarray, gait_name: str,
-         indication: str = "position", des_fr: np.ndarray | None = None,
-         des_fl: np.ndarray | None = None, des_rr: np.ndarray | None = None, des_rl: np.ndarray | None = None,
+         indication: str = "position", des_fr: Union[np.ndarray, None] = None,
+         des_fl: Union[np.ndarray, None] = None, des_rr: Union[np.ndarray, None] = None,
+         des_rl: Union[np.ndarray, None] = None,
          labels: Tuple[str, str, str] = ("x", "y", "z")) -> None:
     fig, axes = plt.subplots(nrows=2, ncols=2, figsize=(10, 5))
 
