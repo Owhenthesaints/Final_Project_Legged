@@ -416,28 +416,17 @@ class QuadrupedGymEnv(gym.Env):
                  + drift_reward \
                  + height_reward \
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
-
         return max(reward, 0)  # keep rewards positive
-
-        # """ Reward progress in the positive world x direction.  """
-        # current_base_position = self.robot.GetBasePosition()
-        # forward_reward = current_base_position[0] - self._last_base_position[0]
-        # self._last_base_position = current_base_position
-        # # clip reward to MAX_FWD_VELOCITY (avoid exploiting simulator dynamics)
-        # if MAX_FWD_VELOCITY < np.inf:
-        #   # calculate what max distance can be over last time interval based on max allowed fwd velocity
-        #   max_dist = MAX_FWD_VELOCITY * (self._time_step * self._action_repeat)
-        #   forward_reward = min( forward_reward, max_dist)
-
-        # return self._distance_weight * forward_reward
+        
+def _reward_fwd_locomotion_max(self):
         # """ Reward function only maximizing the x position"""
-        # current_position = self.robot.GetBasePosition()
-        # fwd_reward = current_position[0] - self._last_position[0]
-        # self._last_position = current_position
+        current_position = self.robot.GetBasePosition()
+        fwd_reward = current_position[0] - self._last_position[0]
+        self._last_position = current_position
 
-        # forward_reward = min( forward_reward, max_dist)
+        forward_reward = min( forward_reward, max_dist)
 
-        # return self._distance_weight * forward_reward
+        return self._distance_weight * forward_reward
 
     def get_distance_and_angle_to_goal(self):
         """ Helper to return distance and angle to current goal location. """
