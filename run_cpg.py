@@ -74,6 +74,7 @@ joint_angles = []
 des_joint_angles = []
 r_dr_array = []
 theta_dtheta_array = []
+speed = np.array(np.empty((0, 3)))
 
 ############## Sample Gains
 # joint PD gains
@@ -99,6 +100,7 @@ for j in range(TEST_STEPS):
     xyz_pos = []
     des_xyz_pos = []
     dxyz_pos = []
+    speed = np.append(speed, [env.get_speed()], axis=0)
     des_joint_angle_loop = np.empty((0, 3))
     joint_angles.append(np.reshape(q, (4, 3)))
 
@@ -118,11 +120,9 @@ for j in range(TEST_STEPS):
         # add Cartesian PD contribution
         if ADD_CARTESIAN_PD:
             # Get current Jacobian and foot position in leg frame (see ComputeJacobianAndPosition() in quadruped.py)
-            # [TODO]
             J, pos = env.robot.ComputeJacobianAndPosition(i)
             # Get current foot velocity in leg frame (Equation 2)
-            # [TODO]
-            v = J @ dq_leg  # to check if it is right
+            v = J @ dq_leg
             # Calculate torque contribution from Cartesian PD (Equation 5) [Make sure you are using matrix multiplications]
             tau += J.T @ (kdCartesian @ (-v) + kpCartesian @ (leg_xyz - pos))  # [TODO]
 
@@ -240,5 +240,12 @@ plt.plot(t, theta_dtheta_array[:, 1, 1], label="dtheta1")
 plt.plot(t, theta_dtheta_array[:, 1, 2], label="dtheta2")
 plt.plot(t, theta_dtheta_array[:, 1, 3], label="dtheta3")
 plt.title("Plot of the theta and dthetas for gait " + GAIT)
+plt.legend()
+plt.show()
+
+plt.plot(t, speed[:, 0], label='speed x', color='blue')
+plt.plot(t, speed[:, 1], label='speed y', color='purple')
+plt.plot(t, speed[:, 2], label='speed z', color='orange')
+plt.title('speeds')
 plt.legend()
 plt.show()
