@@ -421,6 +421,16 @@ class QuadrupedGymEnv(gym.Env):
                  - 0.1 * np.linalg.norm(self.robot.GetBaseOrientation() - np.array([0, 0, 0, 1]))
         return max(reward, 0)  # keep rewards positive
 
+    def _reward_fwd_locomotion_distmax(self):
+        """ Reward function only maximizing the x position"""
+        current_position = self.robot.GetBasePosition()
+        fwd_reward = current_position[0] - self._last_base_position[0]
+        self._last_base_position = current_position
+        
+        forward_reward = min(forward_reward, max_dist)
+    
+        return self._distance_weight * forward_reward
+
     def get_distance_and_angle_to_goal(self):
         """ Helper to return distance and angle to current goal location. """
         # current object location
