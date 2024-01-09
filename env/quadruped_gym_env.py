@@ -426,10 +426,8 @@ class QuadrupedGymEnv(gym.Env):
         current_position = self.robot.GetBasePosition()
         fwd_reward = current_position[0] - self._last_base_position[0]
         self._last_base_position = current_position
-        
-        forward_reward = min(forward_reward, max_dist)
-    
-        return self._distance_weight * forward_reward
+
+        return self._distance_weight * fwd_reward
 
     def get_distance_and_angle_to_goal(self):
         """ Helper to return distance and angle to current goal location. """
