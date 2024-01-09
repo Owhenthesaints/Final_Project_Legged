@@ -100,7 +100,7 @@ episode_reward = 0
 
 # [TODO] initialize arrays to save data from simulation 
 #
-time_steps = 1000
+time_steps = 3000
 speed = np.array(np.empty((0, 3)))
 base_position = np.array(np.empty((0, 3)))
 feet_arrays = np.empty((0, 4, 3))
