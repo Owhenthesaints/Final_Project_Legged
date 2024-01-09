@@ -82,7 +82,7 @@ env = make_vec_env(env, monitor_dir=SAVE_PATH,n_envs=NUM_ENVS)
 env = VecNormalize(env, norm_obs=True, norm_reward=False, clip_obs=100.)
 
 if LOAD_NN:
-    env = lambda: QuadrupedGymEnv()
+    env = lambda: QuadrupedGymEnv(**env_configs)
     env = make_vec_env(env, monitor_dir=SAVE_PATH, n_envs=NUM_ENVS)
     env = VecNormalize.load(stats_path, env)
 
