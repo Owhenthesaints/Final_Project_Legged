@@ -189,8 +189,10 @@ class QuadrupedGymEnv(gym.Env):
             self._observation_noise_stdev = 0.01  #
         else:
             self._observation_noise_stdev = 0.0
-
         # other bookkeeping
+        # check if previous time was in contact
+        self.__previous_touch = [False, False, False, False]
+        self.__contact_counter = [0, 0, 0, 0]
         self._num_bullet_solver_iterations = int(300 / action_repeat)
         self._env_step_counter = 0
         self._sim_step_counter = 0
@@ -859,6 +861,24 @@ class QuadrupedGymEnv(gym.Env):
                                                lineToXYZ,
                                                lineColorRGB=color,
                                                lifeTime=lifeTime)
+
+    def __calculate_frequency(self):
+        _, _, _, contacts = self.robot.GetContactInfo()
+        frequencies = [0, 0, 0, 0]
+        for index, contact in enumerate(contacts):
+            # updating counters logic
+            if self.__previous_touch[index] and contact == 0:
+                self.__previous_touch[index] = False
+            elif not self.__previous_touch[index] and contact == 1:
+                self.__contact_counter[index] += 1
+                self.__previous_touch[index] = True
+
+            # for the first 1000 timesteps of sim the values are not representative
+            if self._env_step_counter < 500:
+                return frequencies
+
+            frequencies[index] = self.__contact_counter[index] / (self._env_step_counter * self._time_step)
+        return np.array(frequencies)
 
     def get_sim_time(self):
         """ Get current simulation time. """
