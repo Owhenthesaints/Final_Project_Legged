@@ -2,7 +2,9 @@
 
 This was a project in which we had to train a robot in order to get it to walk through tricky terrain. This was done using machine learning, in combination with various control techniques (Central Pattern Generators, Cartesian Control and Cartisian Proportional Derivative). 
 
-The robot was simulated using PyBullet, and the training was done using Stable Baselines 3. Here is a brief demonstration of our final result:
+## Video of the final result
+The robot was simulated using PyBullet, and the training was done using Stable Baselines 3. Here is a brief demonstration of our final result(video takes a few seconds to load):
+
 ![Final video](final_video.gif)
 
 # Quadruped-Sim
