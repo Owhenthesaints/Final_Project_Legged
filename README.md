@@ -1,3 +1,10 @@
+# Our Quadruped sim project
+
+This was a project in which we had to train a robot in order to get it to walk through tricky terrain. This was done using machine learning, in combination with various control techniques (Central Pattern Generators, Cartesian Control and Cartisian Proportional Derivative). 
+
+The robot was simulated using PyBullet, and the training was done using Stable Baselines 3. Here is a brief demonstration of our final result:
+![Final video](final_video.gif)
+
 # Quadruped-Sim
 This repository contains an environment for simulating a quadruped robot.
 

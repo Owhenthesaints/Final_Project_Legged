@@ -51,7 +51,7 @@ foot_y = 0.0838  # this is the hip length
 sideSign = np.array([-1, 1, -1, 1])  # get correct hip sign (body right is negative)
 GAIT = "PACE"
 
-env = QuadrupedGymEnv(render=False,  # visualize
+env = QuadrupedGymEnv(render=True,  # visualize
                       on_rack=False,  # useful for debugging!
                       isRLGymInterface=False,  # not using RL
                       time_step=TIME_STEP,
